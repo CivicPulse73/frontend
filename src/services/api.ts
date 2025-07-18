@@ -6,6 +6,7 @@ export interface ApiResponse<T = any> {
   message?: string
   data?: T
   error?: string
+  errors?: string[]
 }
 
 export interface PaginatedResponse<T> {
@@ -74,7 +75,8 @@ class ApiClient {
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          const errorMessage = errorData.detail || errorData.error || `HTTP ${response.status}: ${response.statusText}`
+          // Handle backend APIResponse error format
+          const errorMessage = errorData.message || errorData.detail || errorData.error || `HTTP ${response.status}: ${response.statusText}`
           
           // Handle specific error types
           if (response.status === 429) {

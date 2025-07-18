@@ -36,7 +36,11 @@ export const authService = {
       return response.data
     }
     
-    throw new Error(response.error || 'Login failed')
+
+    
+    // Use the errors array first, then message field from the backend APIResponse format
+    const errorMessage = response.errors?.[0] || response.message || response.error || 'Login failed'
+    throw new Error(errorMessage)
   },
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
@@ -49,7 +53,7 @@ export const authService = {
       return response.data
     }
     
-    throw new Error(response.error || 'Registration failed')
+    throw new Error(response.message || response.error || 'Registration failed')
   },
 
   async logout(): Promise<void> {
