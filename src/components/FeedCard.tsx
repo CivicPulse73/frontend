@@ -10,6 +10,26 @@ interface FeedCardProps {
   post: CivicPost
 }
 
+// Throttle function to prevent rapid API calls
+const throttle = (func: Function, delay: number) => {
+  let timeoutId: number | null = null
+  let lastExecTime = 0
+  return (...args: any[]) => {
+    const currentTime = Date.now()
+    
+    if (currentTime - lastExecTime > delay) {
+      func.apply(null, args)
+      lastExecTime = currentTime
+    } else {
+      if (timeoutId) clearTimeout(timeoutId)
+      timeoutId = window.setTimeout(() => {
+        func.apply(null, args)
+        lastExecTime = Date.now()
+      }, delay - (currentTime - lastExecTime))
+    }
+  }
+}
+
 export default function FeedCard({ post }: FeedCardProps) {
   const navigate = useNavigate()
   const { toggleUpvote, toggleDownvote, toggleSave } = usePosts()
@@ -17,6 +37,11 @@ export default function FeedCard({ post }: FeedCardProps) {
   const [imageLoading, setImageLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
+  
+  // Throttled versions of the action functions
+  const throttledUpvote = useRef(throttle(() => toggleUpvote(post.id), 1000))
+  const throttledDownvote = useRef(throttle(() => toggleDownvote(post.id), 1000))
+  const throttledSave = useRef(throttle(() => toggleSave(post.id), 1000))
   
   // Video player state
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -153,12 +178,21 @@ export default function FeedCard({ post }: FeedCardProps) {
   }, [post.video, isPlaying, wasManuallyPaused, videoError])
 
   // Check if content needs truncation (roughly 100 characters for 2 lines)
-  const needsTruncation = post.content?.length > 100
+  const getContentToDisplay = () => {
+    // For news articles, use description if available, otherwise use content
+    if ((post.source === 'news' || post.post_type === 'news') && post.description) {
+      return post.description
+    }
+    return post.content || ''
+  }
+
+  const contentToDisplay = getContentToDisplay()
+  const needsTruncation = contentToDisplay.length > 100
   
   // Get truncated text for 2-line display (roughly 100 characters)
-  const getTruncatedText = () => {
-    if (!needsTruncation || isExpanded) return post.content || ''
-    const truncated = post.content.slice(0, 100)
+  const getDisplayContent = () => {
+    if (!needsTruncation || isExpanded) return contentToDisplay
+    const truncated = contentToDisplay.slice(0, 100)
     const lastSpaceIndex = truncated.lastIndexOf(' ')
     return lastSpaceIndex > 80 ? truncated.slice(0, lastSpaceIndex) : truncated
   }
@@ -286,15 +320,18 @@ export default function FeedCard({ post }: FeedCardProps) {
 
   const handleShare = async () => {
     try {
+      const isNewsArticle = post.source === 'news' || post.post_type === 'news'
+      const shareData = {
+        title: isNewsArticle ? (post.title || 'News Article') : post.title,
+        text: isNewsArticle ? (post.description || post.content) : post.content,
+        url: isNewsArticle && post.external_url ? post.external_url : window.location.href
+      }
+      
       if (navigator.share) {
-        await navigator.share({
-          title: post.title,
-          text: post.content,
-          url: window.location.href
-        })
+        await navigator.share(shareData)
       } else {
         // Fallback: copy to clipboard
-        await navigator.clipboard.writeText(window.location.href)
+        await navigator.clipboard.writeText(shareData.url)
       }
     } catch (error) {
       console.error('Error sharing:', error)
@@ -309,7 +346,7 @@ export default function FeedCard({ post }: FeedCardProps) {
           <div className="flex items-center space-x-3">
             <Avatar
               src={post.author.avatar_url}
-              alt={post.author.display_name}
+              alt={post.author.display_name || post.author.username}
               size="lg"
               onClick={handleUserClick}
               className="hover:scale-105 transition-transform cursor-pointer"
@@ -318,7 +355,7 @@ export default function FeedCard({ post }: FeedCardProps) {
               <div className="flex items-center space-x-2">
                 <button onClick={handleUserClick}>
                   <h3 className="font-medium text-gray-900 hover:text-primary-600 transition-colors cursor-pointer">
-                    {post.author.display_name}
+                    {post.author.display_name || post.author.username}
                   </h3>
                 </button>
                 {post.author.verified && (
@@ -327,23 +364,44 @@ export default function FeedCard({ post }: FeedCardProps) {
                   </div>
                 )}
               </div>
-              <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
-                <span className="text-xs text-gray-500 capitalize px-2 py-1 bg-gray-100 rounded-full">
-                  {post.author.role}
-                </span>
-                <span>•</span>
-                <MapPin className="w-3 h-3" />
-                <span>{post.location}</span>
-              </div>
+              {/* Hide role and location for news articles */}
+              {!(post.source === 'news' || post.post_type === 'news') && (
+                <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                  <span className="text-xs text-gray-500 capitalize px-2 py-1 bg-gray-100 rounded-full flex items-center space-x-1">
+                    {post.author.role_name && (
+                      <>
+                        {post.author.abbreviation && (
+                          <span className="font-semibold text-primary-600">{post.author.abbreviation}</span>
+                        )}
+                        <span className="hidden sm:inline">{post.author.role_name}</span>
+                      </>
+                    )}
+                    {!post.author.role_name && (
+                      <span>Citizen</span>
+                    )}
+                  </span>
+                  <span>•</span>
+                  <MapPin className="w-3 h-3" />
+                  <span>{post.location}</span>
+                </div>
+              )}
             </div>
           </div>
           
           <div className="flex items-center space-x-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPostTypeColor(post.post_type)} flex items-center space-x-1`}>
-              <span>{getPostIcon(post.post_type)}</span>
-              <span className="capitalize">{post.post_type}</span>
-            </span>
-            {post.status && (
+            {/* Show News tag for news articles, hide other post type tags */}
+            {(post.source === 'news' || post.post_type === 'news') ? (
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPostTypeColor('news')} flex items-center space-x-1`}>
+                <span>{getPostIcon('news')}</span>
+                <span className="capitalize">News</span>
+              </span>
+            ) : (
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPostTypeColor(post.post_type)} flex items-center space-x-1`}>
+                <span>{getPostIcon(post.post_type)}</span>
+                <span className="capitalize">{post.post_type}</span>
+              </span>
+            )}
+            {post.status && !(post.source === 'news' || post.post_type === 'news') && (
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(post.status)}`}>
                 {post.status.replace('-', ' ')}
               </span>
@@ -359,14 +417,15 @@ export default function FeedCard({ post }: FeedCardProps) {
         </h2>
         
         {/* Media Display - Image or Video */}
-        {post.image && !imageError && (
+        {/* Handle both regular post images and NewsAPI images */}
+        {((post.image || post.url_to_image || (post.media_urls && post.media_urls.length > 0)) && !imageError) && (
           <div className="relative overflow-hidden rounded-xl mb-2">
             {imageLoading && (
               <div className="skeleton w-full h-48 bg-gray-200 animate-pulse rounded-xl"></div>
             )}
             <img
-              src={post.image}
-              alt="Post image"
+              src={post.url_to_image || post.image || (post.media_urls && post.media_urls[0]) || ''}
+              alt={post.source === 'news' ? 'News article image' : 'Post image'}
               className={`w-full h-48 object-cover rounded-xl transition-opacity duration-300 ${
                 imageLoading ? 'opacity-0' : 'opacity-100'
               }`}
@@ -376,12 +435,27 @@ export default function FeedCard({ post }: FeedCardProps) {
                 setImageLoading(false)
               }}
             />
-            {post.post_type === 'news' && (
+            {/* External badge for news */}
+            {(post.source === 'news' || post.post_type === 'news') && (
               <div className="absolute top-3 right-3">
                 <div className="bg-black bg-opacity-70 text-white px-2 py-1 rounded-lg text-xs flex items-center space-x-1">
                   <ExternalLink className="w-3 h-3" />
                   <span>External</span>
                 </div>
+              </div>
+            )}
+            {/* Read Full Article button for news */}
+            {(post.source === 'news' || post.post_type === 'news') && post.external_url && (
+              <div className="absolute bottom-3 right-3">
+                <a
+                  href={post.external_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all transform hover:scale-105 active:scale-95 shadow-lg"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span>Read Full</span>
+                </a>
               </div>
             )}
           </div>
@@ -553,11 +627,11 @@ export default function FeedCard({ post }: FeedCardProps) {
           </div>
         )}
 
-        <div className="mb-2">
+                <div className="mb-2">
           <p className="text-gray-700 text-sm leading-relaxed">
             {isExpanded ? (
               <>
-                {post.content}
+                {contentToDisplay}
                 {needsTruncation && (
                   <>
                     {' '}
@@ -572,10 +646,10 @@ export default function FeedCard({ post }: FeedCardProps) {
               </>
             ) : (
               <>
-                {getTruncatedText()}
+                {getDisplayContent()}
                 {needsTruncation && (
                   <>
-                    …{' '}
+                    ...{' '}
                     <button
                       onClick={() => setIsExpanded(true)}
                       className="text-primary-600 hover:text-primary-700 font-medium transition-colors"
@@ -588,12 +662,6 @@ export default function FeedCard({ post }: FeedCardProps) {
             )}
           </p>
         </div>
-
-        {post.category && (
-          <span className="inline-block bg-gradient-primary text-white px-3 py-1 rounded-full text-xs font-medium shadow-sm">
-            #{post.category}
-          </span>
-        )}
       </div>
 
       {/* Actions */}
@@ -601,11 +669,14 @@ export default function FeedCard({ post }: FeedCardProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-1">
             <button
-              onClick={() => toggleUpvote(post.id)}
+              onClick={(post.source === 'news' || post.post_type === 'news') ? undefined : throttledUpvote.current}
+              disabled={post.source === 'news' || post.post_type === 'news'}
               className={`flex items-center space-x-1 px-3 py-2 rounded-lg transition-all transform hover:scale-105 active:scale-95 ${
-                post.is_upvoted 
-                  ? 'bg-green-100 text-green-700 shadow-glow-green' 
-                  : 'hover:bg-gray-100 text-gray-600'
+                (post.source === 'news' || post.post_type === 'news')
+                  ? 'opacity-50 cursor-not-allowed'
+                  : post.is_upvoted 
+                    ? 'bg-green-100 text-green-700 shadow-glow-green' 
+                    : 'hover:bg-gray-100 text-gray-600'
               }`}
             >
               <ArrowUp className={`w-4 h-4 ${post.is_upvoted ? 'fill-current' : ''}`} />
@@ -613,11 +684,14 @@ export default function FeedCard({ post }: FeedCardProps) {
             </button>
             
             <button
-              onClick={() => toggleDownvote(post.id)}
+              onClick={(post.source === 'news' || post.post_type === 'news') ? undefined : throttledDownvote.current}
+              disabled={post.source === 'news' || post.post_type === 'news'}
               className={`flex items-center space-x-1 px-3 py-2 rounded-lg transition-all transform hover:scale-105 active:scale-95 ${
-                post.is_downvoted 
-                  ? 'bg-red-100 text-red-700 shadow-glow-red' 
-                  : 'hover:bg-gray-100 text-gray-600'
+                (post.source === 'news' || post.post_type === 'news')
+                  ? 'opacity-50 cursor-not-allowed'
+                  : post.is_downvoted 
+                    ? 'bg-red-100 text-red-700 shadow-glow-red' 
+                    : 'hover:bg-gray-100 text-gray-600'
               }`}
             >
               <ArrowDown className={`w-4 h-4 ${post.is_downvoted ? 'fill-current' : ''}`} />
@@ -625,8 +699,13 @@ export default function FeedCard({ post }: FeedCardProps) {
             </button>
             
             <button 
-              onClick={() => setShowCommentModal(true)}
-              className="flex items-center space-x-1 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-all transform hover:scale-105 active:scale-95"
+              onClick={(post.source === 'news' || post.post_type === 'news') ? undefined : () => setShowCommentModal(true)}
+              disabled={post.source === 'news' || post.post_type === 'news'}
+              className={`flex items-center space-x-1 px-3 py-2 rounded-lg transition-all transform hover:scale-105 active:scale-95 ${
+                (post.source === 'news' || post.post_type === 'news')
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
             >
               <MessageCircle className="w-4 h-4" />
               <span className="text-sm font-medium">{post.comment_count}</span>
@@ -635,11 +714,14 @@ export default function FeedCard({ post }: FeedCardProps) {
           
           <div className="flex items-center space-x-1">
             <button
-              onClick={() => toggleSave(post.id)}
+              onClick={(post.source === 'news' || post.post_type === 'news') ? undefined : throttledSave.current}
+              disabled={post.source === 'news' || post.post_type === 'news'}
               className={`p-2 rounded-lg transition-all transform hover:scale-105 active:scale-95 ${
-                post.is_saved 
-                  ? 'bg-yellow-100 text-yellow-700' 
-                  : 'hover:bg-gray-100 text-gray-600'
+                (post.source === 'news' || post.post_type === 'news')
+                  ? 'opacity-50 cursor-not-allowed'
+                  : post.is_saved 
+                    ? 'bg-yellow-100 text-yellow-700' 
+                    : 'hover:bg-gray-100 text-gray-600'
               }`}
             >
               <Bookmark className={`w-4 h-4 ${post.is_saved ? 'fill-current' : ''}`} />
@@ -654,8 +736,8 @@ export default function FeedCard({ post }: FeedCardProps) {
           </div>
         </div>
 
-        {/* Show comment count preview */}
-        {post.comment_count > 0 && (
+        {/* Show comment count preview - only for regular posts */}
+        {post.comment_count > 0 && !(post.source === 'news' || post.post_type === 'news') && (
           <div className="mt-4 pt-3 border-t border-gray-100">
             <button
               onClick={() => setShowCommentModal(true)}
@@ -672,12 +754,14 @@ export default function FeedCard({ post }: FeedCardProps) {
         )}
       </div>
 
-      {/* Comment Modal */}
-      <CommentModal
-        post={post}
-        isOpen={showCommentModal}
-        onClose={() => setShowCommentModal(false)}
-      />
+      {/* Comment Modal - only for regular posts */}
+      {!(post.source === 'news' || post.post_type === 'news') && (
+        <CommentModal
+          post={post}
+          isOpen={showCommentModal}
+          onClose={() => setShowCommentModal(false)}
+        />
+      )}
     </div>
   )
 }

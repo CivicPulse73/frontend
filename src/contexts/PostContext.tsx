@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
 import { CivicPost, User } from '../types'
 import { postsService, PostFilters, CreatePostRequest } from '../services/posts'
 
@@ -29,9 +29,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [hasMore, setHasMore] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
 
-  useEffect(() => {
-    loadPosts({}, true)
-  }, [])
+  // Don't load posts automatically - let pages decide when to load
 
   const loadPosts = async (newFilters?: PostFilters, reset = false) => {
     try {
@@ -39,6 +37,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setError(null)      
       const filtersToUse = newFilters || filters
       const page = reset ? 1 : currentPage
+      
+      // Skip if we already have posts and this is just a re-render with the same filters
+      // But don't skip for pagination (loadMore calls)
+      if (!reset && posts.length > 0 && newFilters && JSON.stringify(filtersToUse) === JSON.stringify(filters)) {
+        setLoading(false)
+        return
+      }
       
       // Use real API only - no fallback data
       const response = await postsService.getPosts({
@@ -49,13 +54,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       if (reset) {
         setPosts(response.items)
-        setCurrentPage(1)
+        setCurrentPage(2) // Next page to load will be 2
       } else {
         setPosts(prev => [...prev, ...response.items])
+        setCurrentPage(page + 1) // Increment for next page
       }
 
       setHasMore(response.has_more)
-      setCurrentPage(page + 1)
 
       if (newFilters) {
         setFilters(newFilters)

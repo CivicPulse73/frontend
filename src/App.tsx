@@ -11,10 +11,32 @@ import { PostProvider } from './contexts/PostContext'
 import { UserProvider } from './contexts/UserContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { ErrorBoundary, NetworkStatus } from './components/ErrorBoundary'
+import { roleService } from './services/roleService'
+import { useEffect } from 'react'
 
 function App() {
+  useEffect(() => {
+    // Preload roles when app initializes for better UX
+    const initializeApp = async () => {
+      try {
+        // This will cache roles for the entire app session
+        await roleService.fetchRoles()
+      } catch (error) {
+        // Don't block app loading if roles fail to load
+        console.warn('Failed to preload roles:', error)
+      }
+    }
+
+    initializeApp()
+  }, [])
+
   return (
-    <ErrorBoundary>
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        // Log errors in production for monitoring
+        console.error('App Error:', error, errorInfo)
+      }}
+    >
       <UserProvider>
         <PostProvider>
           <NotificationProvider>

@@ -1,6 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { usePosts } from '../contexts/PostContext'
+import { userService } from '../services/users'
+import { CivicPost } from '../types'
 import { Edit, Bookmark, MessageCircle, TrendingUp, Calendar, MapPin, Eye, Heart, Share2, Filter, Grid, List, MoreHorizontal, Camera, ChevronRight, LogIn } from 'lucide-react'
 import Avatar from '../components/Avatar'
 import FeedCard from '../components/FeedCard'
@@ -9,6 +11,8 @@ import AuthModal from '../components/AuthModal'
 export default function Profile() {
   const { user, updateUser, loading } = useUser()
   const { posts } = usePosts()
+  const [userPosts, setUserPosts] = useState<CivicPost[]>([])
+  const [userPostsLoading, setUserPostsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'activity'>('posts')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
   const [showAvatarModal, setShowAvatarModal] = useState(false)
@@ -18,6 +22,40 @@ export default function Profile() {
   const [isUploadingCover, setIsUploadingCover] = useState(false)
   const avatarFileInputRef = useRef<HTMLInputElement>(null)
   const coverFileInputRef = useRef<HTMLInputElement>(null)
+
+  // Load user posts when user is available  
+  useEffect(() => {
+    if (user && activeTab === 'posts' && userPosts.length === 0) {
+      loadUserPosts()
+    }
+  }, [user, activeTab])
+
+  const loadUserPosts = async () => {
+    if (!user) return
+    
+    try {
+      setUserPostsLoading(true)
+      
+      // First try to use posts from PostContext if available
+      const existingUserPosts = posts.filter(post => post.author.id === user.id)
+      
+      if (existingUserPosts.length > 0) {
+        setUserPosts(existingUserPosts)
+        setUserPostsLoading(false)
+        return
+      }
+      
+      // Only make API call if no posts in context
+      const response = await userService.getCurrentUserPosts()
+      setUserPosts(response.posts)
+    } catch (error) {
+      console.error('Failed to load user posts:', error)
+      // Fallback to filtering from general posts if API fails
+      setUserPosts(posts.filter(post => post.author.id === user.id))
+    } finally {
+      setUserPostsLoading(false)
+    }
+  }
 
   // Show auth modal if user is not logged in
   if (!user && !loading) {
@@ -60,7 +98,6 @@ export default function Profile() {
 
   if (!user) return null
 
-  const userPosts = posts.filter(post => post.author.id === user.id)
   const savedPosts = posts.filter(post => post.is_saved)
   const totalUpvotes = userPosts.reduce((sum, post) => sum + post.upvotes, 0)
   const totalComments = userPosts.reduce((sum, post) => sum + post.comment_count, 0)
@@ -344,7 +381,12 @@ export default function Profile() {
         {/* Tab Navigation */}
         <div className="flex border-b border-gray-100">
           <button
-            onClick={() => setActiveTab('posts')}
+            onClick={() => {
+              setActiveTab('posts')
+              if (activeTab !== 'posts') {
+                loadUserPosts()
+              }
+            }}
             className={`flex-1 py-4 px-4 text-sm font-medium transition-colors relative ${
               activeTab === 'posts' 
                 ? 'text-primary-600 border-b-2 border-primary-600' 
@@ -406,7 +448,12 @@ export default function Profile() {
               </div>
 
               {/* Posts Content */}
-              {userPosts.length > 0 ? (
+              {userPostsLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Loading your posts...</p>
+                </div>
+              ) : userPosts.length > 0 ? (
                 <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3' : 'space-y-3'}>
                   {userPosts.map((post) => (
                     viewMode === 'list' ? (

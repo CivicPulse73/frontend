@@ -4,6 +4,7 @@ import { AlertTriangle, RefreshCw, WifiOff } from 'lucide-react'
 interface ErrorBoundaryProps {
   children: React.ReactNode
   fallback?: React.ComponentType<{ error: Error; retry: () => void }>
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void
 }
 
 interface ErrorBoundaryState {
@@ -23,6 +24,14 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo)
+    
+    // Call optional error handler
+    this.props.onError?.(error, errorInfo)
+    
+    // Report to error tracking service in production
+    if (import.meta.env.MODE === 'production') {
+      // TODO: Integrate with error tracking service (Sentry, LogRocket, etc.)
+    }
   }
 
   render() {

@@ -52,7 +52,7 @@ class ApiClient {
     }
 
     let lastError: Error | null = null
-    const maxRetries = 3
+    const maxRetries = 1
     const retryDelay = 1000
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -122,6 +122,7 @@ class ApiClient {
     if (!refreshToken) return null
 
     try {
+      console.log('Attempting token refresh...')
       const response = await fetch(`${this.baseURL}/api/v1/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -130,17 +131,25 @@ class ApiClient {
 
       if (response.ok) {
         const data = await response.json()
+        console.log('Token refresh successful')
         this.setToken(data.access_token)
         localStorage.setItem('refresh_token', data.refresh_token)
         return data.access_token
+      } else {
+        console.log('Token refresh failed with status:', response.status)
       }
     } catch (error) {
       console.error('Token refresh failed:', error)
     }
 
     // If refresh fails, clear tokens
+    console.log('Clearing tokens due to refresh failure')
     this.setToken(null)
     localStorage.removeItem('refresh_token')
+    
+    // Dispatch a custom event to notify the app about logout
+    window.dispatchEvent(new CustomEvent('token-expired'))
+    
     return null
   }
 

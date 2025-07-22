@@ -148,7 +148,7 @@ function ExploreCard({ post, onClick }: ExploreCardProps) {
         )}
 
         {/* User verification badge for representatives */}
-        {post.author.role === 'representative' && post.author.verified && (
+        {post.author.role_name === 'representative' && post.author.verified && (
           <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4 text-white" />
@@ -199,6 +199,18 @@ export default function Explore() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('recent')
 
+  // Load posts when component mounts if no posts are available
+  useEffect(() => {
+    if (posts.length === 0) {
+      const filters = {
+        post_type: undefined,
+        sort_by: 'created_at',
+        order: 'desc' as const
+      }
+      loadPosts(filters, true)
+    }
+  }, [posts.length, loadPosts])
+
   // Handle filter changes
   const handleFilterChange = async (filter: ExploreFilter) => {
     setActiveFilter(filter)
@@ -248,7 +260,7 @@ export default function Explore() {
           post.title.toLowerCase().includes(query) ||
           post.content.toLowerCase().includes(query) ||
           post.location?.toLowerCase().includes(query) ||
-          post.author.display_name.toLowerCase().includes(query) ||
+          post.author.display_name?.toLowerCase().includes(query) ||
           (post.category && post.category.toLowerCase().includes(query))
         )
       }

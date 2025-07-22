@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { LoginRequest, RegisterRequest } from '../services/auth'
 import { X, Eye, EyeOff, Loader2 } from 'lucide-react'
+import RoleSelector from './RoleSelector'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -28,7 +29,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
     username: '',
     display_name: '',
     bio: '',
-    role: 'citizen'
+    role: null  // Start with no role selected (defaults to citizen)
   })
 
   if (!isOpen) return null
@@ -74,9 +75,9 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
-        <div className="flex justify-between items-center p-6 border-b">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex justify-between items-center p-6 border-b flex-shrink-0">
           <h2 className="text-xl font-semibold">
             {mode === 'login' ? 'Sign In' : 'Create Account'}
           </h2>
@@ -88,7 +89,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1 scrollbar-hide">
+        <div className="flex-1 overflow-y-auto p-6">
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
               {error}
@@ -210,16 +211,18 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Role
+                  Role (Optional)
                 </label>
-                <select
-                  value={registerData.role}
-                  onChange={(e) => setRegisterData(prev => ({ ...prev, role: e.target.value as 'citizen' | 'representative' }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="citizen">Citizen</option>
-                  <option value="representative">Representative</option>
-                </select>
+                <RoleSelector
+                  selectedRoleId={registerData.role || undefined}
+                  onRoleSelect={(roleId) => setRegisterData(prev => ({ ...prev, role: roleId }))}
+                  placeholder="Select a role (defaults to Citizen)"
+                  allowClear={true}
+                  className="w-full"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Leave empty to register as a citizen. Select a role if you hold an official position.
+                </p>
               </div>
 
               <div>

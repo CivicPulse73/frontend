@@ -1,5 +1,5 @@
-import { apiClient } from './api'
-import { User } from '../types'
+import { apiClient, ApiResponse } from './api'
+import { User, CivicPost } from '../types'
 
 export interface UpdateUserRequest {
   username?: string
@@ -9,13 +9,56 @@ export interface UpdateUserRequest {
   cover_photo?: string
 }
 
+export interface UserPostsResponse {
+  posts: CivicPost[]
+  page: number
+  size: number
+  total: number
+}
+
+// Simple cache for user data
+let userCache: User | null = null
+let userCacheExpiry: number = 0
+const CACHE_DURATION = 1 * 1000 // 10 seconds for development
+
 export const userService = {
   async getCurrentUser(): Promise<User> {
-    return await apiClient.get<User>('/users/profile')
+    // Check cache first
+    if (userCache && Date.now() < userCacheExpiry) {
+      return userCache
+    }
+    
+    const user = await apiClient.get<User>('/users/profile')
+    
+    // Update cache
+    userCache = user
+    userCacheExpiry = Date.now() + CACHE_DURATION
+    
+    return user
+  },
+
+  async getCurrentUserPosts(page: number = 1, size: number = 10): Promise<UserPostsResponse> {
+    const response = await apiClient.get<ApiResponse<UserPostsResponse>>(`/users/posts?page=${page}&size=${size}`)
+    if (!response.data) {
+      throw new Error('Failed to get user posts')
+    }
+    return response.data
   },
 
   async updateProfile(userData: UpdateUserRequest): Promise<User> {
-    return await apiClient.put<User>('/users/profile', userData)
+    const user = await apiClient.put<User>('/users/profile', userData)
+    
+    // Update cache
+    userCache = user
+    userCacheExpiry = Date.now() + CACHE_DURATION
+    
+    return user
+  },
+
+  // Clear cache when user logs out
+  clearCache(): void {
+    userCache = null
+    userCacheExpiry = 0
   },
 
   async uploadAvatar(file: File): Promise<{ avatar_url: string }> {

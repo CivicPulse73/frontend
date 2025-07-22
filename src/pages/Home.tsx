@@ -1,9 +1,32 @@
+import { useEffect, useRef, useCallback } from 'react'
 import { usePosts } from '../contexts/PostContext'
 import FeedCard from '../components/FeedCard'
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 
 export default function Home() {
-  const { posts, loading, error, refreshPosts } = usePosts()
+  const { posts, loading, error, refreshPosts, loadPosts, loadMore, hasMore } = usePosts()
+  const observerRef = useRef<IntersectionObserver | null>(null)
+
+  // Load posts only when component mounts and if we don't have any posts
+  useEffect(() => {
+    if (posts.length === 0 && !loading) {
+      loadPosts({}, true)
+    }
+  }, [])
+
+  // Intersection observer for infinite scroll
+  const lastPostElementRef = useCallback((node: HTMLDivElement) => {
+    if (loading) return
+    if (observerRef.current) observerRef.current.disconnect()
+    
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loading) {
+        loadMore()
+      }
+    })
+    
+    if (node) observerRef.current.observe(node)
+  }, [loading, hasMore, loadMore])
 
   if (loading && posts.length === 0) {
     return (
@@ -49,9 +72,13 @@ export default function Home() {
 
         {/* Posts Feed */}
         <div className="space-y-1">
-          {posts.map((post) => (
-            <FeedCard key={post.id} post={post} />
-          ))}
+          {posts.map((post, index) => {
+            if (posts.length === index + 1) {
+              return <div key={post.id} ref={lastPostElementRef}><FeedCard post={post} /></div>
+            } else {
+              return <FeedCard key={post.id} post={post} />
+            }
+          })}
         </div>
         
         {/* Loading More */}
@@ -59,6 +86,13 @@ export default function Home() {
           <div className="flex items-center justify-center py-4">
             <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
             <span className="ml-2 text-gray-600">Loading more posts...</span>
+          </div>
+        )}
+        
+        {/* No more posts indicator */}
+        {!hasMore && posts.length > 0 && (
+          <div className="text-center py-6 text-gray-500 text-sm">
+            You've reached the end! 🎉
           </div>
         )}
         

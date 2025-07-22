@@ -27,9 +27,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
         authService.initializeAuth()
         
         if (authService.isAuthenticated()) {
-          // Try to get current user
-          const currentUser = await userService.getCurrentUser()
-          setUser(currentUser)
+          // Only fetch user if we don't already have one
+          if (!user) {
+            const currentUser = await userService.getCurrentUser()
+            setUser(currentUser)
+          }
         }
       } catch (error) {
         console.error('Failed to initialize auth:', error)
@@ -40,8 +42,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    initializeAuth()
-  }, [])
+    // Listen for token expiration events
+    const handleTokenExpired = () => {
+      console.log('Token expired event received, logging out...')
+      setUser(null)
+      authService.logout()
+    }
+
+    window.addEventListener('token-expired', handleTokenExpired)
+
+    // Only initialize if we haven't already
+    if (loading) {
+      initializeAuth()
+    }
+
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener('token-expired', handleTokenExpired)
+    }
+  }, [user, loading])
 
   const login = async (credentials: LoginRequest) => {
     try {
@@ -72,6 +91,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await authService.logout()
+      // Clear user cache
+      userService.clearCache()
     } catch (error) {
       console.error('Logout failed:', error)
     } finally {

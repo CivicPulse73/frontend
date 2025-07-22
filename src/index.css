@@ -473,6 +473,12 @@
     display: none;
   }
 
+  /* Modal scrolling improvements */
+  .modal-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* Text clamping utilities */
   .line-clamp-2 {
     display: -webkit-box;

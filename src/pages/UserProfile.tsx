@@ -68,19 +68,32 @@ export default function UserProfile() {
         <div className="flex items-center space-x-4 mb-6">
           <Avatar
             src={profileUser.avatar_url}
-            alt={profileUser.display_name}
+            alt={profileUser.display_name || profileUser.username}
             size="2xl"
           />
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-1">
-              <h1 className="text-2xl font-semibold text-gray-900">{profileUser.display_name}</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">{profileUser.display_name || profileUser.username}</h1>
               {profileUser.verified && (
                 <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-sm">✓</span>
                 </div>
               )}
             </div>
-            <p className="text-gray-600 capitalize font-medium">{profileUser.role}</p>
+            <div className="flex items-center space-x-2 mb-2">
+              {profileUser.role_name ? (
+                <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium flex items-center space-x-1">
+                  {profileUser.abbreviation && (
+                    <span className="font-bold">{profileUser.abbreviation}</span>
+                  )}
+                  <span>{profileUser.role_name}</span>
+                </span>
+              ) : (
+                <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                  Citizen
+                </span>
+              )}
+            </div>
             <p className="text-sm text-gray-500">{profileUser.bio}</p>
           </div>
           {isOwnProfile && (
