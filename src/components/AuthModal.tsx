@@ -1,8 +1,21 @@
 import React, { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
-import { LoginRequest, RegisterRequest } from '../services/auth'
 import { X, Eye, EyeOff, Loader2 } from 'lucide-react'
 import RoleSelector from './RoleSelector'
+
+interface LoginData {
+  email: string
+  password: string
+}
+
+interface RegisterData {
+  email: string
+  password: string
+  username: string
+  display_name: string
+  bio?: string
+  role?: string | null
+}
 
 interface AuthModalProps {
   isOpen: boolean
@@ -18,12 +31,12 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
   const [success, setSuccess] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
   
-  const [loginData, setLoginData] = useState<LoginRequest>({
+  const [loginData, setLoginData] = useState<LoginData>({
     email: '',
     password: ''
   })
 
-  const [registerData, setRegisterData] = useState<RegisterRequest>({
+  const [registerData, setRegisterData] = useState<RegisterData>({
     email: '',
     password: '',
     username: '',
@@ -39,7 +52,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
     setError('')
     
     try {
-      await login(loginData)
+      await login(loginData.email, loginData.password)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')

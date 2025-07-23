@@ -37,8 +37,17 @@ class AuthService {
       localStorage.setItem('access_token', response.data.tokens.access_token)
       localStorage.setItem('refresh_token', response.data.tokens.refresh_token)
       
+      // Store user data in localStorage for cross-tab access
+      localStorage.setItem('current_user', JSON.stringify(response.data.user))
+      localStorage.setItem('current_user_expiry', (Date.now() + 5 * 60 * 1000).toString())
+      
       // Start token refresh timer
       this.startTokenRefreshTimer()
+      
+      // Broadcast login event to other tabs
+      window.dispatchEvent(new CustomEvent('user-login', { 
+        detail: response.data.user 
+      }))
       
       return response.data
     }
@@ -59,8 +68,17 @@ class AuthService {
       localStorage.setItem('access_token', response.data.tokens.access_token)
       localStorage.setItem('refresh_token', response.data.tokens.refresh_token)
       
+      // Store user data in localStorage for cross-tab access
+      localStorage.setItem('current_user', JSON.stringify(response.data.user))
+      localStorage.setItem('current_user_expiry', (Date.now() + 5 * 60 * 1000).toString())
+      
       // Start token refresh timer
       this.startTokenRefreshTimer()
+      
+      // Broadcast login event to other tabs
+      window.dispatchEvent(new CustomEvent('user-login', { 
+        detail: response.data.user 
+      }))
       
       return response.data
     }
@@ -85,6 +103,11 @@ class AuthService {
       apiClient.setToken(null)
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
+      localStorage.removeItem('current_user')
+      localStorage.removeItem('current_user_expiry')
+      
+      // Broadcast logout event to other tabs
+      window.dispatchEvent(new CustomEvent('user-logout'))
     }
   }
 

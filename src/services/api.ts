@@ -23,16 +23,16 @@ class ApiClient {
 
   constructor(baseURL: string) {
     this.baseURL = baseURL
-    // Initialize token from localStorage
-    this.token = localStorage.getItem('access_token')
+    // Initialize token from localStorage (using the same key as authManager)
+    this.token = localStorage.getItem('civic_access_token')
   }
 
   setToken(token: string | null) {
     this.token = token
     if (token) {
-      localStorage.setItem('access_token', token)
+      localStorage.setItem('civic_access_token', token)
     } else {
-      localStorage.removeItem('access_token')
+      localStorage.removeItem('civic_access_token')
     }
   }
 

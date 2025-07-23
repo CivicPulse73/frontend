@@ -13,6 +13,24 @@ export default function BottomNavigation() {
   const location = useLocation()
   const navigate = useNavigate()
 
+  const handleHomeClick = () => {
+    if (location.pathname === '/') {
+      // If already on home page, scroll to top smoothly
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      // If on different page, navigate to home
+      navigate('/')
+    }
+  }
+
+  const handleNavigation = (path: string) => {
+    if (path === '/') {
+      handleHomeClick()
+    } else {
+      navigate(path)
+    }
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
       <div className="max-w-lg mx-auto px-4 py-2">
@@ -24,7 +42,7 @@ export default function BottomNavigation() {
             return (
               <button
                 key={item.id}
-                onClick={() => navigate(item.path)}
+                onClick={() => handleNavigation(item.path)}
                 className={`nav-item ${isActive ? 'active' : 'text-gray-600 hover:text-gray-900'}`}
               >
                 <Icon className="w-5 h-5" />

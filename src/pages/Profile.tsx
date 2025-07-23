@@ -23,35 +23,41 @@ export default function Profile() {
   const avatarFileInputRef = useRef<HTMLInputElement>(null)
   const coverFileInputRef = useRef<HTMLInputElement>(null)
 
-  // Load user posts when user is available  
+  // Load user posts when user is available or when tab changes
   useEffect(() => {
-    if (user && activeTab === 'posts' && userPosts.length === 0) {
+    if (user && activeTab === 'posts') {
       loadUserPosts()
     }
   }, [user, activeTab])
+
+  // Also reload user posts when the user changes (e.g., after login)
+  useEffect(() => {
+    if (user && activeTab === 'posts') {
+      // Clear existing posts and reload
+      setUserPosts([])
+      loadUserPosts()
+    }
+  }, [user?.id])
 
   const loadUserPosts = async () => {
     if (!user) return
     
     try {
       setUserPostsLoading(true)
+      console.log('📝 Loading user posts for:', user.username)
       
-      // First try to use posts from PostContext if available
-      const existingUserPosts = posts.filter(post => post.author.id === user.id)
-      
-      if (existingUserPosts.length > 0) {
-        setUserPosts(existingUserPosts)
-        setUserPostsLoading(false)
-        return
-      }
-      
-      // Only make API call if no posts in context
+      // Always try API first for fresh data
       const response = await userService.getCurrentUserPosts()
+      console.log('✅ Loaded user posts:', response.posts.length)
       setUserPosts(response.posts)
+      
     } catch (error) {
-      console.error('Failed to load user posts:', error)
+      console.error('❌ Failed to load user posts:', error)
+      
       // Fallback to filtering from general posts if API fails
-      setUserPosts(posts.filter(post => post.author.id === user.id))
+      const existingUserPosts = posts.filter(post => post.author.id === user.id)
+      console.log('🔄 Using fallback posts:', existingUserPosts.length)
+      setUserPosts(existingUserPosts)
     } finally {
       setUserPostsLoading(false)
     }

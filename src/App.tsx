@@ -11,6 +11,7 @@ import { PostProvider } from './contexts/PostContext'
 import { UserProvider } from './contexts/UserContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { ErrorBoundary, NetworkStatus } from './components/ErrorBoundary'
+import AuthDebug from './components/AuthDebug'
 import { roleService } from './services/roleService'
 import { useEffect } from 'react'
 
@@ -52,6 +53,7 @@ function App() {
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/profile/:userId" element={<UserProfile />} />
                   </Routes>
+                  <AuthDebug />
                 </Layout>
               </AnimatePresence>
             </Router>

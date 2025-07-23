@@ -19,7 +19,7 @@ export interface UserPostsResponse {
 // Simple cache for user data
 let userCache: User | null = null
 let userCacheExpiry: number = 0
-const CACHE_DURATION = 1 * 1000 // 10 seconds for development
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes cache duration
 
 export const userService = {
   async getCurrentUser(): Promise<User> {
@@ -28,29 +28,60 @@ export const userService = {
       return userCache
     }
     
+    // Check localStorage for user data
+    const storedUser = localStorage.getItem('current_user')
+    const storedExpiry = localStorage.getItem('current_user_expiry')
+    
+    if (storedUser && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+      try {
+        const userData = JSON.parse(storedUser) as User
+        userCache = userData
+        userCacheExpiry = parseInt(storedExpiry)
+        return userData
+      } catch (error) {
+        console.warn('Failed to parse stored user data:', error)
+        localStorage.removeItem('current_user')
+        localStorage.removeItem('current_user_expiry')
+      }
+    }
+    
     const user = await apiClient.get<User>('/users/profile')
     
-    // Update cache
+    // Update cache and localStorage
     userCache = user
     userCacheExpiry = Date.now() + CACHE_DURATION
+    localStorage.setItem('current_user', JSON.stringify(user))
+    localStorage.setItem('current_user_expiry', userCacheExpiry.toString())
     
     return user
   },
 
   async getCurrentUserPosts(page: number = 1, size: number = 10): Promise<UserPostsResponse> {
-    const response = await apiClient.get<ApiResponse<UserPostsResponse>>(`/users/posts?page=${page}&size=${size}`)
-    if (!response.data) {
-      throw new Error('Failed to get user posts')
+    console.log('🔄 Fetching user posts from API...')
+    try {
+      const response = await apiClient.get<ApiResponse<UserPostsResponse>>(`/users/posts?page=${page}&size=${size}`)
+      console.log('✅ User posts API response:', response)
+      
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to get user posts')
+      }
+      
+      console.log('📝 Retrieved user posts:', response.data.posts.length)
+      return response.data
+    } catch (error) {
+      console.error('❌ Get user posts error:', error)
+      throw error
     }
-    return response.data
   },
 
   async updateProfile(userData: UpdateUserRequest): Promise<User> {
     const user = await apiClient.put<User>('/users/profile', userData)
     
-    // Update cache
+    // Update cache and localStorage
     userCache = user
     userCacheExpiry = Date.now() + CACHE_DURATION
+    localStorage.setItem('current_user', JSON.stringify(user))
+    localStorage.setItem('current_user_expiry', userCacheExpiry.toString())
     
     return user
   },
@@ -59,6 +90,8 @@ export const userService = {
   clearCache(): void {
     userCache = null
     userCacheExpiry = 0
+    localStorage.removeItem('current_user')
+    localStorage.removeItem('current_user_expiry')
   },
 
   async uploadAvatar(file: File): Promise<{ avatar_url: string }> {

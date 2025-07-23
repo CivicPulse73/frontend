@@ -1,146 +1,191 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { User } from '../types'
-import { authService, LoginRequest, RegisterRequest } from '../services/auth'
-import { userService, UpdateUserRequest } from '../services/users'
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { authManager, User, LoginRequest, RegisterRequest } from '../services/authManager'
 
 interface UserContextType {
   user: User | null
   loading: boolean
-  login: (credentials: LoginRequest) => Promise<void>
-  register: (userData: RegisterRequest) => Promise<void>
+  login: (email: string, password: string) => Promise<User>
+  register: (userData: RegisterData) => Promise<User>
   logout: () => Promise<void>
-  updateUser: (updates: UpdateUserRequest) => Promise<void>
   refreshUser: () => Promise<void>
 }
 
-const UserContext = createContext<UserContextType | undefined>(undefined)
-
-export function UserProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  // Check for existing authentication on mount
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        // Initialize auth service with stored tokens
-        authService.initializeAuth()
-        
-        if (authService.isAuthenticated()) {
-          // Only fetch user if we don't already have one
-          if (!user) {
-            const currentUser = await userService.getCurrentUser()
-            setUser(currentUser)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to initialize auth:', error)
-        // Clear invalid tokens
-        await authService.logout()
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    // Listen for token expiration events
-    const handleTokenExpired = () => {
-      console.log('Token expired event received, logging out...')
-      setUser(null)
-      authService.logout()
-    }
-
-    window.addEventListener('token-expired', handleTokenExpired)
-
-    // Only initialize if we haven't already
-    if (loading) {
-      initializeAuth()
-    }
-
-    // Cleanup event listener
-    return () => {
-      window.removeEventListener('token-expired', handleTokenExpired)
-    }
-  }, [user, loading])
-
-  const login = async (credentials: LoginRequest) => {
-    try {
-      setLoading(true)
-      const response = await authService.login(credentials)
-      setUser(response.user)
-    } catch (error) {
-      console.error('Login failed:', error)
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const register = async (userData: RegisterRequest) => {
-    try {
-      setLoading(true)
-      const response = await authService.register(userData)
-      setUser(response.user)
-    } catch (error) {
-      console.error('Registration failed:', error)
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const logout = async () => {
-    try {
-      await authService.logout()
-      // Clear user cache
-      userService.clearCache()
-    } catch (error) {
-      console.error('Logout failed:', error)
-    } finally {
-      setUser(null)
-    }
-  }
-
-  const updateUser = async (updates: UpdateUserRequest) => {
-    try {
-      if (!user) throw new Error('No user logged in')
-      
-      setLoading(true)
-      const updatedUser = await userService.updateProfile(updates)
-      setUser(updatedUser)
-    } catch (error) {
-      console.error('Update user failed:', error)
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const refreshUser = async () => {
-    try {
-      if (!authService.isAuthenticated()) return
-      
-      setLoading(true)
-      const currentUser = await userService.getCurrentUser()
-      setUser(currentUser)
-    } catch (error) {
-      console.error('Refresh user failed:', error)
-      // Don't throw here as this is typically called automatically
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <UserContext.Provider value={{ user, loading, login, register, logout, updateUser, refreshUser }}>
-      {children}
-    </UserContext.Provider>
-  )
+interface RegisterData {
+  email: string
+  password: string
+  username: string
+  display_name?: string
+  bio?: string
+  avatar_url?: string
+  role?: string | null
 }
 
-export function useUser() {
+const UserContext = createContext<UserContextType>({
+  user: null,
+  loading: true,
+  login: async () => { throw new Error('UserContext not initialized') },
+  register: async () => { throw new Error('UserContext not initialized') },
+  logout: async () => {},
+  refreshUser: async () => {}
+})
+
+export const useUser = () => {
   const context = useContext(UserContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useUser must be used within a UserProvider')
   }
   return context
+}
+
+export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Initialize user from storage
+  useEffect(() => {
+    const initializeUser = () => {
+      console.log('🔄 Initializing user from storage...')
+      const storedUser = authManager.getStoredUser()
+      
+      if (storedUser && authManager.isAuthenticated()) {
+        console.log('✅ Found stored user:', storedUser.username)
+        setUser(storedUser)
+      } else {
+        console.log('❌ No valid stored user found')
+        setUser(null)
+      }
+      
+      setLoading(false)
+    }
+
+    initializeUser()
+  }, [])
+
+  // Listen for authentication state changes (from auth manager)
+  useEffect(() => {
+    const handleAuthChange = (event: any) => {
+      const { type, user: eventUser } = event.detail
+      
+      console.log(`🔔 Auth state change: ${type}`)
+      
+      if (type === 'login' && eventUser) {
+        setUser(eventUser)
+      } else if (type === 'logout') {
+        setUser(null)
+      }
+    }
+
+    window.addEventListener('auth-state-change', handleAuthChange)
+    return () => window.removeEventListener('auth-state-change', handleAuthChange)
+  }, [])
+
+  // Auto-refresh token if needed
+  useEffect(() => {
+    if (user && authManager.shouldRefreshToken()) {
+      console.log('🔄 Auto-refreshing token...')
+      authManager.refreshAccessToken()
+    }
+  }, [user])
+
+  const login = async (email: string, password: string): Promise<User> => {
+    try {
+      setLoading(true)
+      console.log('🔐 UserContext: Attempting login...')
+      
+      const credentials: LoginRequest = { email, password }
+      const authData = await authManager.login(credentials)
+      
+      setUser(authData.user)
+      console.log('✅ UserContext: Login successful')
+      
+      return authData.user
+    } catch (error) {
+      console.error('❌ UserContext: Login failed:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const register = async (userData: RegisterData): Promise<User> => {
+    try {
+      setLoading(true)
+      console.log('📝 UserContext: Attempting registration...')
+      
+      const registerData: RegisterRequest = {
+        email: userData.email,
+        password: userData.password,
+        username: userData.username,
+        display_name: userData.display_name,
+        bio: userData.bio,
+        avatar_url: userData.avatar_url,
+        role: userData.role
+      }
+      
+      const authData = await authManager.register(registerData)
+      
+      setUser(authData.user)
+      console.log('✅ UserContext: Registration successful')
+      
+      return authData.user
+    } catch (error) {
+      console.error('❌ UserContext: Registration failed:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const logout = async (): Promise<void> => {
+    try {
+      console.log('🚪 UserContext: Logging out...')
+      await authManager.logout()
+      setUser(null)
+      console.log('✅ UserContext: Logout successful')
+    } catch (error) {
+      console.error('❌ UserContext: Logout error:', error)
+      // Still clear user state even if logout API fails
+      setUser(null)
+    }
+  }
+
+  const refreshUser = async (): Promise<void> => {
+    try {
+      console.log('🔄 UserContext: Refreshing user...')
+      
+      if (authManager.isAuthenticated()) {
+        const storedUser = authManager.getStoredUser()
+        if (storedUser) {
+          setUser(storedUser)
+          console.log('✅ UserContext: User refreshed from storage')
+        } else {
+          // If no stored user but we have token, something is wrong
+          await authManager.logout()
+          setUser(null)
+          console.log('⚠️ UserContext: No stored user, logged out')
+        }
+      } else {
+        setUser(null)
+        console.log('❌ UserContext: Not authenticated, cleared user')
+      }
+    } catch (error) {
+      console.error('❌ UserContext: Failed to refresh user:', error)
+      setUser(null)
+    }
+  }
+
+  const value: UserContextType = {
+    user,
+    loading,
+    login,
+    register,
+    logout,
+    refreshUser
+  }
+
+  return (
+    <UserContext.Provider value={value}>
+      {children}
+    </UserContext.Provider>
+  )
 }
