@@ -45,10 +45,30 @@ const USER_DATA_KEY = 'civic_user_data'
 
 class AuthManager {
   private refreshTimer: number | null = null
+  private retryCount = 0
+  private maxRetries = 3
 
   constructor() {
     // Initialize with stored token if available
     this.initializeFromStorage()
+    
+    // Add development debugging
+    if (import.meta.env.DEV) {
+      console.log('🔧 AuthManager initialized in development mode')
+      this.logStoredData()
+    }
+  }
+
+  private logStoredData(): void {
+    if (!import.meta.env.DEV) return
+    
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY)
+    const user = localStorage.getItem(USER_DATA_KEY)
+    console.log('📊 Auth state:', {
+      hasToken: !!token,
+      hasUser: !!user,
+      tokenPreview: token ? `${token.substring(0, 20)}...` : null
+    })
   }
 
   private initializeFromStorage(): void {
@@ -56,12 +76,29 @@ class AuthManager {
     if (token) {
       apiClient.setToken(token)
       this.startTokenRefresh()
+      
+      // Validate token on startup in development
+      if (import.meta.env.DEV) {
+        this.validateCurrentToken()
+      }
+    }
+  }
+
+  private async validateCurrentToken(): Promise<void> {
+    try {
+      await apiClient.get('/auth/me')
+      console.log('✅ Stored token is valid')
+    } catch (error) {
+      console.warn('⚠️ Stored token is invalid, clearing auth data')
+      this.clearAuthData()
     }
   }
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     try {
-      console.log('🔐 Attempting login for:', credentials.email)
+      if (import.meta.env.DEV) {
+        console.log('🔐 Attempting login for:', credentials.email)
+      }
       
       const response = await apiClient.post<any>('/auth/login', credentials)
       
@@ -70,21 +107,28 @@ class AuthManager {
         
         // Store tokens and user data
         this.storeAuthData(authData)
+        this.retryCount = 0 // Reset retry count on successful login
         
-        console.log('✅ Login successful for:', authData.user.username)
+        if (import.meta.env.DEV) {
+          console.log('✅ Login successful for:', authData.user.username)
+        }
         return authData
       }
       
       throw new Error(response.message || 'Login failed')
     } catch (error) {
-      console.error('❌ Login failed:', error)
+      if (import.meta.env.DEV) {
+        console.error('❌ Login failed:', error)
+      }
       throw error
     }
   }
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
     try {
-      console.log('📝 Attempting registration for:', userData.email)
+      if (import.meta.env.DEV) {
+        console.log('📝 Attempting registration for:', userData.email)
+      }
       
       const response = await apiClient.post<any>('/auth/register', userData)
       
@@ -94,7 +138,9 @@ class AuthManager {
         // Store tokens and user data
         this.storeAuthData(authData)
         
-        console.log('✅ Registration successful for:', authData.user.username)
+        if (import.meta.env.DEV) {
+          console.log('✅ Registration successful for:', authData.user.username)
+        }
         return authData
       }
       
