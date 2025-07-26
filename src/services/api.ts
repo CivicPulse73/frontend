@@ -1,5 +1,5 @@
 // API configuration and base client
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000'
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1'
 
 export interface ApiResponse<T = any> {
   success: boolean
@@ -62,7 +62,7 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseURL}/api/v1${endpoint}`
+    const url = `${this.baseURL}${endpoint}`
     
     const config: RequestInit = {
       headers: {
@@ -195,7 +195,7 @@ class ApiClient {
 
     try {
       console.log('Attempting token refresh...')
-      const response = await fetch(`${this.baseURL}/api/v1/auth/refresh`, {
+      const response = await fetch(`${this.baseURL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken })

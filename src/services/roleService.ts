@@ -4,7 +4,7 @@ export interface Role {
   id: string;
   role_name: string;
   abbreviation: string;
-  h_order: number;
+  level_rank: number;
   role_type: string;
   description: string;
   level: string;
@@ -91,7 +91,7 @@ class RoleService {
       this.roles = data.data.map((role: any) => ({
         ...role,
         // Ensure required fields have defaults
-        h_order: role.h_order ?? 999,
+        level_rank: role.level_rank ?? 999,
         description: role.description || '',
         abbreviation: role.abbreviation || '',
         role_type: role.role_type || 'Other',
@@ -139,7 +139,7 @@ class RoleService {
    * Get all roles sorted by hierarchy order
    */
   getRoles(): Role[] {
-    return [...this.roles].sort((a, b) => a.h_order - b.h_order);
+    return [...this.roles].sort((a, b) => a.level_rank - b.level_rank);
   }
 
   /**
@@ -178,7 +178,7 @@ class RoleService {
       );
     }
     
-    return filteredRoles.sort((a, b) => a.h_order - b.h_order);
+    return filteredRoles.sort((a, b) => a.level_rank - b.level_rank);
   }
 
   /**
@@ -187,7 +187,7 @@ class RoleService {
   getRolesByLevel(level: string): Role[] {
     return this.roles
       .filter(role => role.level.toLowerCase() === level.toLowerCase())
-      .sort((a, b) => a.h_order - b.h_order);
+      .sort((a, b) => a.level_rank - b.level_rank);
   }
 
   /**
@@ -196,7 +196,7 @@ class RoleService {
   getElectedRoles(): Role[] {
     return this.roles
       .filter(role => role.is_elected)
-      .sort((a, b) => a.h_order - b.h_order);
+      .sort((a, b) => a.level_rank - b.level_rank);
   }
 
   /**

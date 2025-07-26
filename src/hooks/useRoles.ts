@@ -62,11 +62,11 @@ export const useRoles = (): UseRolesReturn => {
       case 'type':
         return sortedRoles.sort((a, b) => {
           const typeComparison = a.role_type.localeCompare(b.role_type)
-          return typeComparison !== 0 ? typeComparison : a.h_order - b.h_order
+          return typeComparison !== 0 ? typeComparison : a.level_rank - b.level_rank
         })
       case 'order':
       default:
-        return sortedRoles.sort((a, b) => a.h_order - b.h_order)
+        return sortedRoles.sort((a, b) => a.level_rank - b.level_rank)
     }
   }, [roles])
 

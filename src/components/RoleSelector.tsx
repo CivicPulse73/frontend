@@ -42,7 +42,7 @@ export default function RoleSelector({
       )
     }
     
-    return filtered.sort((a, b) => a.h_order - b.h_order)
+    return filtered.sort((a, b) => a.level_rank - b.level_rank)
   }, [roles, filterByType, filterByLevel])
 
   const selectedRole = useMemo(() => {

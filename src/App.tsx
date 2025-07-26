@@ -27,85 +27,51 @@ function LoadingSpinner() {
 
 function App() {
   useEffect(() => {
-    // Initialize app with development features
+    // Simple initialization without dev utils for now
     const initializeApp = async () => {
       try {
-        DevUtils.performance('App Initialization', async () => {
-          // Initialize authentication first with better token management
-          const accessToken = authManager.getAccessToken()
-          const refreshToken = authManager.getRefreshToken()
+        console.log('🔄 Initializing app...')
+        
+        // Initialize authentication
+        const accessToken = authManager.getAccessToken()
+        const refreshToken = authManager.getRefreshToken()
+        
+        console.log('Auth tokens status:', {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken
+        })
+        
+        if (accessToken && authManager.isTokenExpired()) {
+          console.log('Access token is expired, attempting refresh...')
           
-          DevUtils.log('app', 'Auth tokens status:', {
-            hasAccessToken: !!accessToken,
-            hasRefreshToken: !!refreshToken
-          })
-          
-          if (accessToken) {
-            // Check if token is expired and try to refresh if needed
-            if (authManager.isTokenExpired()) {
-              DevUtils.log('app', 'Access token is expired, attempting refresh...')
-              
-              if (refreshToken && !authManager.isRefreshTokenExpired()) {
-                const newToken = await authManager.refreshAccessToken()
-                if (newToken) {
-                  DevUtils.log('app', 'Token refreshed successfully, maintaining session')
-                } else {
-                  DevUtils.log('app', 'Token refresh failed, user will be logged out')
-                }
-              } else {
-                DevUtils.log('app', 'Refresh token unavailable or expired, clearing auth')
-                await authManager.logout()
-              }
+          if (refreshToken && !authManager.isRefreshTokenExpired()) {
+            const newToken = await authManager.refreshAccessToken()
+            if (newToken) {
+              console.log('Token refreshed successfully')
             } else {
-              DevUtils.log('app', 'Access token is valid, maintaining session')
+              console.log('Token refresh failed')
             }
           } else {
-            DevUtils.log('app', 'No access token found')
+            console.log('Refresh token unavailable or expired, clearing auth')
+            await authManager.logout()
           }
-          
-          // Preload roles when app initializes for better UX
-          await roleService.fetchRoles()
-          DevUtils.log('app', 'Roles preloaded successfully')
-        })
+        }
+        
+        // Preload roles
+        await roleService.fetchRoles()
+        console.log('Roles preloaded successfully')
       } catch (error) {
-        // Don't block app loading if roles fail to load
-        DevUtils.warn('app', 'Failed to preload roles', error)
+        console.warn('Failed to initialize app:', error)
       }
     }
 
     initializeApp()
-
-    // Development-only features
-    if (import.meta.env.DEV) {
-      // Log app mount
-      DevUtils.log('app', 'App component mounted')
-      
-      // Add global error handler for unhandled promise rejections
-      const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-        DevUtils.error('app', 'Unhandled promise rejection', event.reason)
-      }
-      
-      window.addEventListener('unhandledrejection', handleUnhandledRejection)
-      
-      return () => {
-        window.removeEventListener('unhandledrejection', handleUnhandledRejection)
-      }
-    }
-    
-    // Return undefined for non-dev environments
-    return undefined
   }, [])
 
   return (
     <ErrorBoundary
       onError={(error, errorInfo) => {
-        // Enhanced error logging for development
-        if (import.meta.env.DEV) {
-          DevUtils.error('app', 'React Error Boundary caught error', { error, errorInfo })
-        } else {
-          // In production, you would send to error tracking service
-          console.error('App Error:', error, errorInfo)
-        }
+        console.error('App Error:', error, errorInfo)
       }}
     >
       <UserProvider>

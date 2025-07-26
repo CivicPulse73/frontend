@@ -4,7 +4,7 @@ import { Role } from '../types'
 export interface CreateRoleData {
   role_name: string
   abbreviation?: string
-  h_order?: number
+  level_rank?: number
   role_type?: string
   description?: string
   level?: string
@@ -16,7 +16,7 @@ export interface CreateRoleData {
 export interface UpdateRoleData {
   role_name?: string
   abbreviation?: string
-  h_order?: number
+  level_rank?: number
   role_type?: string
   description?: string
   level?: string

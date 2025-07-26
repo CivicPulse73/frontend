@@ -2,7 +2,7 @@ export interface Role {
   id: string
   role_name: string
   abbreviation: string
-  h_order: number
+  level_rank: number
   role_type: string
   description: string
   level: string
@@ -46,7 +46,7 @@ export interface Author {
   avatar_url?: string
   role_name?: string
   abbreviation?: string
-  h_order?: number
+  level_rank?: number
   verified?: boolean  // Added verified field for compatibility
   bio?: string  // Added bio field for compatibility
 }

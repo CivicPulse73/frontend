@@ -98,7 +98,7 @@ export const userService = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch(`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:8000'}/api/v1/users/avatar`, {
+    const response = await fetch(`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1'}/users/avatar`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${localStorage.getItem('access_token')}`,
@@ -118,7 +118,7 @@ export const userService = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch(`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:8000'}/api/v1/users/cover-photo`, {
+    const response = await fetch(`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1'}/users/cover-photo`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${localStorage.getItem('access_token')}`,
