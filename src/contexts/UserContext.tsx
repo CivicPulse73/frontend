@@ -43,15 +43,52 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Initialize user from storage
   useEffect(() => {
-    const initializeUser = () => {
+    const initializeUser = async () => {
       console.log('🔄 Initializing user from storage...')
-      const storedUser = authManager.getStoredUser()
       
-      if (storedUser && authManager.isAuthenticated()) {
-        console.log('✅ Found stored user:', storedUser.username)
-        setUser(storedUser)
-      } else {
-        console.log('❌ No valid stored user found')
+      try {
+        // First check if we have a valid token
+        const hasValidToken = authManager.isAuthenticated()
+        console.log('📊 Token status:', { hasValidToken })
+        
+        if (hasValidToken) {
+          const storedUser = authManager.getStoredUser()
+          
+          if (storedUser) {
+            console.log('✅ Found stored user:', storedUser.username)
+            setUser(storedUser)
+            
+            // Check if token needs refresh
+            if (authManager.shouldRefreshToken()) {
+              console.log('🔄 Token needs refresh, attempting refresh...')
+              
+              // First check if refresh token is still valid
+              if (!authManager.isRefreshTokenExpired()) {
+                const newToken = await authManager.refreshAccessToken()
+                if (newToken) {
+                  console.log('✅ Token refreshed successfully')
+                } else {
+                  console.log('❌ Token refresh failed, logging out')
+                  await authManager.logout()
+                  setUser(null)
+                }
+              } else {
+                console.log('❌ Refresh token expired, logging out')
+                await authManager.logout()
+                setUser(null)
+              }
+            }
+          } else {
+            console.log('⚠️ Have token but no stored user, clearing auth')
+            await authManager.logout()
+            setUser(null)
+          }
+        } else {
+          console.log('❌ No valid token found')
+          setUser(null)
+        }
+      } catch (error) {
+        console.error('❌ Error during user initialization:', error)
         setUser(null)
       }
       
@@ -75,8 +112,21 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     }
 
+    // Listen for storage events (logout from other tabs)
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'civic_access_token' && !event.newValue) {
+        console.log('🔔 Token removed from storage (possibly from another tab)')
+        setUser(null)
+      }
+    }
+
     window.addEventListener('auth-state-change', handleAuthChange)
-    return () => window.removeEventListener('auth-state-change', handleAuthChange)
+    window.addEventListener('storage', handleStorageChange)
+    
+    return () => {
+      window.removeEventListener('auth-state-change', handleAuthChange)
+      window.removeEventListener('storage', handleStorageChange)
+    }
   }, [])
 
   // Auto-refresh token if needed

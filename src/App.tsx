@@ -12,6 +12,7 @@ import { UserProvider } from './contexts/UserContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { ErrorBoundary, NetworkStatus } from './components/ErrorBoundary'
 import { roleService } from './services/roleService'
+import { authManager } from './services/authManager'
 import { useEffect, Suspense } from 'react'
 import DevUtils from './utils/devUtils'
 
@@ -30,6 +31,38 @@ function App() {
     const initializeApp = async () => {
       try {
         DevUtils.performance('App Initialization', async () => {
+          // Initialize authentication first with better token management
+          const accessToken = authManager.getAccessToken()
+          const refreshToken = authManager.getRefreshToken()
+          
+          DevUtils.log('app', 'Auth tokens status:', {
+            hasAccessToken: !!accessToken,
+            hasRefreshToken: !!refreshToken
+          })
+          
+          if (accessToken) {
+            // Check if token is expired and try to refresh if needed
+            if (authManager.isTokenExpired()) {
+              DevUtils.log('app', 'Access token is expired, attempting refresh...')
+              
+              if (refreshToken && !authManager.isRefreshTokenExpired()) {
+                const newToken = await authManager.refreshAccessToken()
+                if (newToken) {
+                  DevUtils.log('app', 'Token refreshed successfully, maintaining session')
+                } else {
+                  DevUtils.log('app', 'Token refresh failed, user will be logged out')
+                }
+              } else {
+                DevUtils.log('app', 'Refresh token unavailable or expired, clearing auth')
+                await authManager.logout()
+              }
+            } else {
+              DevUtils.log('app', 'Access token is valid, maintaining session')
+            }
+          } else {
+            DevUtils.log('app', 'No access token found')
+          }
+          
           // Preload roles when app initializes for better UX
           await roleService.fetchRoles()
           DevUtils.log('app', 'Roles preloaded successfully')

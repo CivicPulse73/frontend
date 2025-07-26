@@ -52,6 +52,9 @@ class AuthManager {
     // Initialize with stored token if available
     this.initializeFromStorage()
     
+    // Add window focus listener to refresh tokens when user returns
+    this.addFocusListener()
+    
     // Add development debugging
     if (import.meta.env.DEV) {
       console.log('🔧 AuthManager initialized in development mode')
@@ -59,14 +62,60 @@ class AuthManager {
     }
   }
 
+  private addFocusListener(): void {
+    // Refresh tokens when user returns to the tab after being away
+    window.addEventListener('focus', async () => {
+      if (this.isAuthenticated() && this.shouldRefreshToken()) {
+        console.log('👁️ Window focus detected, checking token status...')
+        await this.refreshAccessToken()
+      }
+    })
+  }
+
   private logStoredData(): void {
     if (!import.meta.env.DEV) return
     
     const token = localStorage.getItem(ACCESS_TOKEN_KEY)
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
     const user = localStorage.getItem(USER_DATA_KEY)
+    
+    let tokenInfo = null
+    let refreshTokenInfo = null
+    
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        const now = Math.floor(Date.now() / 1000)
+        tokenInfo = {
+          expiresAt: new Date(payload.exp * 1000).toLocaleString(),
+          expiresIn: Math.max(0, payload.exp - now),
+          isExpired: payload.exp <= now
+        }
+      } catch (e) {
+        tokenInfo = { error: 'Invalid token format' }
+      }
+    }
+    
+    if (refreshToken) {
+      try {
+        const payload = JSON.parse(atob(refreshToken.split('.')[1]))
+        const now = Math.floor(Date.now() / 1000)
+        refreshTokenInfo = {
+          expiresAt: new Date(payload.exp * 1000).toLocaleString(),
+          expiresIn: Math.max(0, payload.exp - now),
+          isExpired: payload.exp <= now
+        }
+      } catch (e) {
+        refreshTokenInfo = { error: 'Invalid refresh token format' }
+      }
+    }
+    
     console.log('📊 Auth state:', {
       hasToken: !!token,
+      hasRefreshToken: !!refreshToken,
       hasUser: !!user,
+      tokenInfo,
+      refreshTokenInfo,
       tokenPreview: token ? `${token.substring(0, 20)}...` : null
     })
   }
@@ -86,10 +135,11 @@ class AuthManager {
 
   private async validateCurrentToken(): Promise<void> {
     try {
-      await apiClient.get('/auth/me')
+      console.log('🔍 Validating stored token...')
+      await apiClient.get('/users/profile')
       console.log('✅ Stored token is valid')
     } catch (error) {
-      console.warn('⚠️ Stored token is invalid, clearing auth data')
+      console.warn('⚠️ Stored token is invalid, clearing auth data:', error)
       this.clearAuthData()
     }
   }
@@ -176,6 +226,13 @@ class AuthManager {
       return null
     }
 
+    // Check if refresh token itself is expired
+    if (this.isRefreshTokenExpired()) {
+      console.log('❌ Refresh token is expired, cannot refresh')
+      await this.logout() // Clear all auth data
+      return null
+    }
+
     try {
       console.log('🔄 Refreshing access token...')
       
@@ -193,6 +250,9 @@ class AuthManager {
         // Update API client
         apiClient.setToken(tokenData.access_token)
         
+        // Reset retry count on success
+        this.retryCount = 0
+        
         console.log('✅ Token refreshed successfully')
         return tokenData.access_token
       }
@@ -200,7 +260,15 @@ class AuthManager {
       throw new Error('Invalid refresh response')
     } catch (error) {
       console.error('❌ Token refresh failed:', error)
-      this.clearAuthData()
+      // Don't immediately clear auth data on first failure
+      this.retryCount++
+      
+      if (this.retryCount >= this.maxRetries) {
+        console.log('❌ Max refresh retries reached, logging out')
+        await this.logout()
+        this.retryCount = 0
+      }
+      
       return null
     }
   }
@@ -244,10 +312,14 @@ class AuthManager {
   private startTokenRefresh(): void {
     this.stopTokenRefresh()
     
-    // Refresh token every 30 minutes (tokens expire in 120 minutes)
-    this.refreshTimer = setInterval(() => {
-      this.refreshAccessToken()
-    }, 30 * 60 * 1000)
+    // Refresh token every 15 minutes (tokens expire in 120 minutes, refresh 2 hours)
+    // This gives us plenty of buffer time
+    this.refreshTimer = setInterval(async () => {
+      if (this.shouldRefreshToken()) {
+        console.log('⏰ Proactive token refresh triggered')
+        await this.refreshAccessToken()
+      }
+    }, 15 * 60 * 1000) // 15 minutes
   }
 
   private stopTokenRefresh(): void {
@@ -288,7 +360,15 @@ class AuthManager {
 
   isAuthenticated(): boolean {
     const token = this.getAccessToken()
-    return !!token
+    if (!token) return false
+    
+    // Check if token is expired
+    if (this.isTokenExpired()) {
+      console.log('🕐 Token is expired')
+      return false
+    }
+    
+    return true
   }
 
   // Check if token is expired (simple check without JWT parsing)
@@ -307,6 +387,40 @@ class AuthManager {
     } catch (error) {
       console.warn('⚠️ Failed to check token expiration')
       return false
+    }
+  }
+
+  // Check if token is actually expired (not just needs refresh)
+  isTokenExpired(): boolean {
+    const token = this.getAccessToken()
+    if (!token) return true
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      const now = Math.floor(Date.now() / 1000)
+      const exp = payload.exp
+      
+      return !exp || exp <= now
+    } catch (error) {
+      console.warn('⚠️ Failed to check token expiration, treating as expired')
+      return true
+    }
+  }
+
+  // Check if refresh token is expired
+  isRefreshTokenExpired(): boolean {
+    const refreshToken = this.getRefreshToken()
+    if (!refreshToken) return true
+
+    try {
+      const payload = JSON.parse(atob(refreshToken.split('.')[1]))
+      const now = Math.floor(Date.now() / 1000)
+      const exp = payload.exp
+      
+      return !exp || exp <= now
+    } catch (error) {
+      console.warn('⚠️ Failed to check refresh token expiration, treating as expired')
+      return true
     }
   }
 }

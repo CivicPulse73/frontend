@@ -13,6 +13,17 @@ export interface Role {
   updated_at: string
 }
 
+export interface LocationData {
+  latitude: number;
+  longitude: number;
+  address: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  district?: string;
+  pincode?: string;
+}
+
 export interface User {
   id: string
   username: string  // Changed from 'name' to 'username'
@@ -52,6 +63,8 @@ export interface CivicPost {
   media_urls?: string[]  // Changed from 'images' to 'media_urls' to match backend
   area?: string  // Changed from 'location' to 'area' to match backend
   location?: string  // Keep both for backward compatibility
+  latitude?: number  // Geographic coordinates
+  longitude?: number  // Geographic coordinates
   created_at: string  // Changed from 'timestamp' to 'created_at'
   updated_at: string  // Added updated_at
   status?: 'open' | 'in_progress' | 'resolved' | 'closed'  // Updated to match backend enum

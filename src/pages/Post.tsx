@@ -3,6 +3,8 @@ import { usePosts } from '../contexts/PostContext'
 import { useUser } from '../contexts/UserContext'
 import { Camera, MapPin, Tag, CheckCircle, AlertCircle, X, Upload, Video, Image, LogIn } from 'lucide-react'
 import AuthModal from '../components/AuthModal'
+import { LocationSelector } from '../components/Maps/LocationSelector'
+import { LocationData } from '../types'
 
 const postTypes = [
   { 
@@ -47,6 +49,8 @@ export default function Post() {
   const [mediaUrl, setMediaUrl] = useState<string>('')
   const [mediaType, setMediaType] = useState<'none' | 'image' | 'video'>('none')
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [locationData, setLocationData] = useState<LocationData | null>(null)
+  const [showLocationSelector, setShowLocationSelector] = useState(false)
   
   const [formData, setFormData] = useState({
     type: 'issue' as const,
@@ -85,6 +89,10 @@ export default function Post() {
     return Object.keys(newErrors).length === 0
   }
 
+  const handleLocationSelect = (location: LocationData) => {
+    setLocationData(location)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     console.log('Form submitted', { user, formData })
@@ -117,7 +125,9 @@ export default function Post() {
         area: formData.area,
         category: formData.category || undefined,
         media_urls: mediaUrls.length > 0 ? mediaUrls : undefined,
-        location: formData.area
+        location: locationData?.address || formData.area,
+        latitude: locationData?.latitude || undefined,
+        longitude: locationData?.longitude || undefined
       }
       
       console.log('Submitting post:', postPayload)
@@ -135,6 +145,8 @@ export default function Post() {
       })
       setMediaUrl('')
       setMediaType('none')
+      setLocationData(null)
+      setShowLocationSelector(false)
       setErrors({})
       setShowSuccess(true)
 
@@ -325,6 +337,97 @@ export default function Post() {
                   <AlertCircle className="w-4 h-4" />
                   <span>{errors.area}</span>
                 </p>
+              )}
+            </div>
+
+            {/* Location Selection with Map */}
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  <MapPin className="w-4 h-4 inline mr-1" />
+                  Precise Location (Optional)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowLocationSelector(!showLocationSelector)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all flex items-center space-x-1 ${
+                    showLocationSelector 
+                      ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                      : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200'
+                  }`}
+                >
+                  <MapPin className="w-4 h-4" />
+                  <span>{showLocationSelector ? 'Hide Map' : 'Select on Map'}</span>
+                </button>
+              </div>
+
+              {/* Helper text when map is hidden */}
+              {!showLocationSelector && !locationData && (
+                <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-sm text-gray-600 flex items-center space-x-2">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <span>Add a precise location to help community members find and address this issue more effectively</span>
+                  </p>
+                </div>
+              )}
+              
+              {locationData && (
+                <div className="mb-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <p className="text-sm font-medium text-green-800">Location Selected</p>
+                      </div>
+                      <p className="text-sm text-green-700 mb-1">{locationData.address}</p>
+                      <div className="flex flex-wrap gap-2 text-xs text-green-600">
+                        <span className="bg-green-100 px-2 py-1 rounded">
+                          📍 {locationData.latitude.toFixed(4)}, {locationData.longitude.toFixed(4)}
+                        </span>
+                        {locationData.city && (
+                          <span className="bg-green-100 px-2 py-1 rounded">
+                            🏘️ {locationData.city}
+                          </span>
+                        )}
+                        {locationData.state && (
+                          <span className="bg-green-100 px-2 py-1 rounded">
+                            🏛️ {locationData.state}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLocationData(null)}
+                      className="text-green-600 hover:text-green-800 p-1 hover:bg-green-100 rounded transition-colors"
+                      title="Remove location"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showLocationSelector && (
+                <div className="border border-gray-300 rounded-lg overflow-hidden bg-white">
+                  <div className="bg-blue-50 border-b border-blue-200 p-3">
+                    <div className="flex items-center space-x-2 text-blue-700">
+                      <MapPin className="w-4 h-4" />
+                      <span className="text-sm font-medium">Select your exact location</span>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Click anywhere on the map or use your current location to pinpoint the exact spot
+                    </p>
+                  </div>
+                  <div className="p-4">
+                    <LocationSelector
+                      onLocationSelect={handleLocationSelect}
+                      initialLocation={locationData || undefined}
+                      height="320px"
+                      showAddressInput={false}
+                    />
+                  </div>
+                </div>
               )}
             </div>
 
