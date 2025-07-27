@@ -16,6 +16,23 @@ export interface RegisterRequest {
   role?: string | null
 }
 
+export interface RepresentativeAccount {
+  id: string;
+  title: {
+    id: string;
+    title_name: string;
+    abbreviation: string;
+    level_rank: number;
+    description: string;
+  };
+  jurisdiction: {
+    id: string;
+    name: string;
+    level_name: string;
+  };
+  linked_at: string;
+}
+
 export interface User {
   id: string
   email: string
@@ -27,6 +44,15 @@ export interface User {
   created_at: string
   updated_at: string
   role?: any
+  cover_photo?: string
+  verified?: boolean
+  rep_accounts?: RepresentativeAccount[]
+  linked_representative?: {
+    id: string
+    title_name: string
+    abbreviation?: string
+    jurisdiction_name: string
+  }
 }
 
 export interface AuthResponse {
@@ -236,25 +262,29 @@ class AuthManager {
     try {
       console.log('🔄 Refreshing access token...')
       
-      const response = await apiClient.post<any>('/auth/refresh', {
+      const response = await apiClient.post<{
+        access_token: string
+        refresh_token: string
+        token_type: string
+        expires_in: number
+      }>('/auth/refresh', {
         refresh_token: refreshToken
       })
 
-      if (response.success && response.data) {
-        const tokenData = response.data
-        
+      // Backend returns Token object directly, not wrapped in APIResponse
+      if (response.access_token && response.refresh_token) {
         // Update stored tokens
-        localStorage.setItem(ACCESS_TOKEN_KEY, tokenData.access_token)
-        localStorage.setItem(REFRESH_TOKEN_KEY, tokenData.refresh_token)
+        localStorage.setItem(ACCESS_TOKEN_KEY, response.access_token)
+        localStorage.setItem(REFRESH_TOKEN_KEY, response.refresh_token)
         
         // Update API client
-        apiClient.setToken(tokenData.access_token)
+        apiClient.setToken(response.access_token)
         
         // Reset retry count on success
         this.retryCount = 0
         
         console.log('✅ Token refreshed successfully')
-        return tokenData.access_token
+        return response.access_token
       }
       
       throw new Error('Invalid refresh response')

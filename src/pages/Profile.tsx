@@ -1,16 +1,19 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useUser } from '../contexts/UserContext'
 import { usePosts } from '../contexts/PostContext'
 import { userService } from '../services/users'
 import { CivicPost } from '../types'
 import { Edit, Bookmark, MessageCircle, TrendingUp, Calendar, MapPin, Eye, Heart, Share2, Filter, Grid, List, MoreHorizontal, Camera, ChevronRight, LogIn } from 'lucide-react'
+import { Crown, Settings } from '../components/Icons'
 import Avatar from '../components/Avatar'
 import FeedCard from '../components/FeedCard'
 import AuthModal from '../components/AuthModal'
 
 export default function Profile() {
-  const { user, updateUser, loading } = useUser()
+  const { user, loading } = useUser()
   const { posts } = usePosts()
+  const navigate = useNavigate()
   const [userPosts, setUserPosts] = useState<CivicPost[]>([])
   const [userPostsLoading, setUserPostsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'activity'>('posts')
@@ -181,13 +184,18 @@ export default function Profile() {
   }
 
   const handleAvatarChange = (newAvatarUrl: string) => {
-    updateUser({ avatar_url: newAvatarUrl })  // Changed from 'avatar' to 'avatar_url'
+    // TODO: Add updateUser functionality to UserContext
+    // updateUser({ avatar_url: newAvatarUrl })
     setShowAvatarModal(false)
   }
 
   const handleEditProfile = () => {
     console.log('Edit profile clicked')
     // TODO: Navigate to edit profile page or open edit modal
+  }
+
+  const handleSettings = () => {
+    navigate('/settings')
   }
 
   const handleShareProfile = () => {
@@ -219,7 +227,8 @@ export default function Profile() {
   }
 
   const handleCoverChange = (newCoverUrl: string) => {
-    updateUser({ cover_photo: newCoverUrl })
+    // TODO: Add updateUser functionality to UserContext  
+    // updateUser({ cover_photo: newCoverUrl })
     setShowCoverModal(false)
   }
 
@@ -332,6 +341,33 @@ export default function Profile() {
                 <span>Joined {formatJoinDate(joinDate)}</span>
               </span>
             </div>
+            
+            {/* Representative Info - Use rep_accounts first, fallback to linked_representative */}
+            {(user.rep_accounts && user.rep_accounts.length > 0) ? (
+              <div className="mb-2">
+                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
+                  <Crown className="w-4 h-4" />
+                  <span>
+                    {user.rep_accounts[0].title.abbreviation && `${user.rep_accounts[0].title.abbreviation} `}
+                    {user.rep_accounts[0].title.title_name}
+                  </span>
+                  <span className="text-primary-600">•</span>
+                  <span className="text-primary-600">{user.rep_accounts[0].jurisdiction.name}</span>
+                </div>
+              </div>
+            ) : user.linked_representative && (
+              <div className="mb-2">
+                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
+                  <Crown className="w-4 h-4" />
+                  <span>
+                    {user.linked_representative.abbreviation && `${user.linked_representative.abbreviation} `}
+                    {user.linked_representative.title_name}
+                  </span>
+                  <span className="text-primary-600">•</span>
+                  <span className="text-primary-600">{user.linked_representative.jurisdiction_name}</span>
+                </div>
+              </div>
+            )}
             <p className="text-gray-700 text-sm">
               Passionate about making our community better. Let's work together to solve local issues and create positive change! 🏘️✨
             </p>
@@ -367,14 +403,23 @@ export default function Profile() {
               <span>Edit Profile</span>
             </button>
             <button 
+              onClick={handleSettings}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center space-x-2"
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button 
               onClick={handleShareProfile}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center"
+              title="Share Profile"
             >
               <Share2 className="w-4 h-4" />
             </button>
             <button 
               onClick={handleMoreOptions}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center"
+              title="More Options"
             >
               <MoreHorizontal className="w-4 h-4" />
             </button>

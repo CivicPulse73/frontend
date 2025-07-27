@@ -13,6 +13,21 @@ export interface Role {
   updated_at: string
 }
 
+export interface Representative {
+  id: string
+  jurisdiction_id: string
+  title_id: string
+  user_id?: string | null
+  jurisdiction_name: string
+  jurisdiction_level: string
+  title_name: string
+  abbreviation?: string
+  level_rank?: number
+  description?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface LocationData {
   latitude: number;
   longitude: number;
@@ -24,19 +39,40 @@ export interface LocationData {
   pincode?: string;
 }
 
+export interface RepresentativeAccount {
+  id: string;
+  title: {
+    id: string;
+    title_name: string;
+    abbreviation: string;
+    level_rank: number;
+    description: string;
+  };
+  jurisdiction: {
+    id: string;
+    name: string;
+    level_name: string;
+  };
+  linked_at: string;
+}
+
 export interface User {
-  id: string
-  username: string  // Changed from 'name' to 'username'
-  display_name: string  // Added display_name 
-  email: string
-  avatar_url?: string  // Changed from 'avatar' to 'avatar_url'
-  cover_photo?: string
-  role?: string  // Now UUID reference to role table
-  role_info?: Role  // Full role information when populated
-  bio?: string  // Changed from 'area' to 'bio'
-  verified?: boolean  // Made optional
-  created_at: string
-  updated_at: string
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  jurisdiction_id?: string;
+  jurisdiction_name?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  avatar?: string;
+  bio?: string;
+  rep_accounts?: RepresentativeAccount[];
+  last_active?: string;
+  cover_photo?: string;
+  verified?: boolean;
+  linked_representative?: Representative;
 }
 
 export interface Author {
@@ -49,6 +85,7 @@ export interface Author {
   level_rank?: number
   verified?: boolean  // Added verified field for compatibility
   bio?: string  // Added bio field for compatibility
+  rep_accounts?: RepresentativeAccount[]  // Added rep_accounts for complete user data
 }
 
 export interface CivicPost {

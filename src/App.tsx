@@ -7,6 +7,7 @@ import Activity from './pages/Activity'
 import Explore from './pages/Explore'
 import Profile from './pages/Profile'
 import UserProfile from './pages/UserProfile'
+import Settings from './pages/Settings'
 import { PostProvider } from './contexts/PostContext'
 import { UserProvider } from './contexts/UserContext'
 import { NotificationProvider } from './contexts/NotificationContext'
@@ -89,6 +90,7 @@ function App() {
                       <Route path="/explore" element={<Explore />} />
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/profile/:userId" element={<UserProfile />} />
+                      <Route path="/settings" element={<Settings />} />
                     </Routes>
                   </Layout>
                 </AnimatePresence>

@@ -368,21 +368,40 @@ export default function FeedCard({ post }: FeedCardProps) {
               {!(post.source === 'news' || post.post_type === 'news') && (
                 <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
                   <span className="text-xs text-gray-500 capitalize px-2 py-1 bg-gray-100 rounded-full flex items-center space-x-1">
-                    {post.author.role_name && (
-                      <>
-                        {post.author.abbreviation && (
-                          <span className="font-semibold text-primary-600">{post.author.abbreviation}</span>
-                        )}
-                        <span className="hidden sm:inline">{post.author.role_name}</span>
-                      </>
-                    )}
-                    {!post.author.role_name && (
-                      <span>Citizen</span>
-                    )}
+                    {/* Use rep_accounts info first, fallback to role_name/abbreviation */}
+                    {(() => {
+                      // Debug logging to see what data we have
+                      console.log('Author data:', post.author);
+                      console.log('Rep accounts:', post.author.rep_accounts);
+                      
+                      if (post.author.rep_accounts && post.author.rep_accounts.length > 0) {
+                        const repAccount = post.author.rep_accounts[0];
+                        console.log('Using rep account:', repAccount);
+                        return (
+                          <>
+                            {repAccount.title.abbreviation && (
+                              <span className="font-semibold text-primary-600">{repAccount.title.abbreviation}</span>
+                            )}
+                            <span className="text-primary-600">•</span>
+                            <span className="text-primary-600">{repAccount.jurisdiction.name}</span>
+                          </>
+                        );
+                      } else if (post.author.role_name) {
+                        console.log('Using role_name:', post.author.role_name);
+                        return (
+                          <>
+                            {post.author.abbreviation && (
+                              <span className="font-semibold text-primary-600">{post.author.abbreviation}</span>
+                            )}
+                            <span className="hidden sm:inline">{post.author.role_name}</span>
+                          </>
+                        );
+                      } else {
+                        console.log('Falling back to Citizen');
+                        return <span>Citizen</span>;
+                      }
+                    })()}
                   </span>
-                  <span>•</span>
-                  <MapPin className="w-3 h-3" />
-                  <span>{post.location}</span>
                 </div>
               )}
             </div>

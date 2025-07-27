@@ -81,7 +81,17 @@ export default function UserProfile() {
               )}
             </div>
             <div className="flex items-center space-x-2 mb-2">
-              {profileUser.role_name ? (
+              {/* Use rep_accounts info first, fallback to role_name/abbreviation */}
+              {(profileUser.rep_accounts && profileUser.rep_accounts.length > 0) ? (
+                <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium flex items-center space-x-1">
+                  {profileUser.rep_accounts[0].title.abbreviation && (
+                    <span className="font-bold">{profileUser.rep_accounts[0].title.abbreviation}</span>
+                  )}
+                  <span>{profileUser.rep_accounts[0].title.title_name}</span>
+                  <span className="text-primary-600">•</span>
+                  <span className="text-primary-600">{profileUser.rep_accounts[0].jurisdiction.name}</span>
+                </span>
+              ) : profileUser.role_name ? (
                 <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium flex items-center space-x-1">
                   {profileUser.abbreviation && (
                     <span className="font-bold">{profileUser.abbreviation}</span>
