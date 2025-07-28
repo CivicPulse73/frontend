@@ -260,8 +260,7 @@ export default function Explore() {
           post.title.toLowerCase().includes(query) ||
           post.content.toLowerCase().includes(query) ||
           post.location?.toLowerCase().includes(query) ||
-          post.author.display_name?.toLowerCase().includes(query) ||
-          (post.category && post.category.toLowerCase().includes(query))
+          post.author.display_name?.toLowerCase().includes(query)
         )
       }
       
@@ -337,7 +336,7 @@ export default function Explore() {
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
           {/* Filter buttons */}
           <div className="flex-1">
-            <div className="flex space-x-2 overflow-x-auto scrollbar-hide pb-2">
+            <div className="flex flex-wrap gap-2">
               {filterOptions.map((option) => {
                 const Icon = option.icon
                 const count = posts.filter(p => option.value === 'all' || p.post_type === option.value).length
@@ -345,7 +344,7 @@ export default function Explore() {
                   <button
                     key={option.value}
                     onClick={() => handleFilterChange(option.value)}
-                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${
                       activeFilter === option.value
                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
                         : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300'

@@ -224,22 +224,6 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Role (Optional)
-                </label>
-                <RoleSelector
-                  selectedRoleId={registerData.role || undefined}
-                  onRoleSelect={(roleId) => setRegisterData(prev => ({ ...prev, role: roleId }))}
-                  placeholder="Select a role (defaults to Citizen)"
-                  allowClear={true}
-                  className="w-full"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Leave empty to register as a citizen. Select a role if you hold an official position.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Password
                 </label>
                 <div className="relative">

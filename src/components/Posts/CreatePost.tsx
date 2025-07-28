@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { roleService, Role } from '../../services/roleService';
 import { RoleTag } from './RoleTag';
 import { LocationSelector } from '../Maps/LocationSelector';
+import { AssigneeSelector } from './AssigneeSelector';
 import { LocationData } from '../../types';
 import { apiClient } from '../../services/api';
 
@@ -19,10 +20,9 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState<'issue' | 'announcement' | 'accomplishment' | 'discussion'>('issue');
-  const [category, setCategory] = useState('');
-  const [area, setArea] = useState('');
   const [locationData, setLocationData] = useState<LocationData | null>(null);
-  const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const [showLocationSelector, setShowLocationSelector] = useState(true); // Start with map open
+  const [assignee, setAssignee] = useState<string | null>(null);
   
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,7 +44,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
 
   const handleRoleSelect = (role: Role) => {
     if (!selectedRoles.find(r => r.id === role.id)) {
-      setSelectedRoles([...selectedRoles, role].sort((a, b) => a.h_order - b.h_order));
+      setSelectedRoles([...selectedRoles, role].sort((a, b) => a.level_rank - b.level_rank));
     }
   };
 
@@ -54,6 +54,12 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
 
   const handleLocationSelect = (location: LocationData) => {
     setLocationData(location);
+    // Clear assignee when location changes since assignees are location-specific
+    setAssignee(null);
+  };
+
+  const handleAssigneeSelect = (assigneeId: string | null) => {
+    setAssignee(assigneeId);
   };
 
   const validateForm = () => {
@@ -71,12 +77,12 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
       newErrors.content = 'Content must be less than 10000 characters';
     }
 
-    if (category && category.length > 100) {
-      newErrors.category = 'Category must be less than 100 characters';
+    if (!assignee) {
+      newErrors.assignee = 'Please select an assignee for your post';
     }
 
-    if (area && area.length > 100) {
-      newErrors.area = 'Area must be less than 100 characters';
+    if (!locationData?.latitude || !locationData?.longitude) {
+      newErrors.location = 'Please select a location on the map';
     }
 
     setErrors(newErrors);
@@ -97,8 +103,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
         title: title.trim(),
         content: content.trim(),
         post_type: postType,
-        category: category.trim() || undefined,
-        area: area.trim() || undefined,
+        assignee: assignee,
         location: locationData?.address || undefined,
         latitude: locationData?.latitude || undefined,
         longitude: locationData?.longitude || undefined,
@@ -205,42 +210,32 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
               <p className="mt-1 text-sm text-gray-500">{content.length}/10000 characters</p>
             </div>
 
-            {/* Category and Area */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                  Category
-                </label>
-                <input
-                  type="text"
-                  id="category"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.category ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., Infrastructure, Education, Health"
-                  maxLength={100}
-                />
-                {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
-              </div>
-
-              <div>
-                <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-2">
-                  Area
-                </label>
-                <input
-                  type="text"
-                  id="area"
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.area ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., Bangalore, Mumbai, Delhi"
-                  maxLength={100}
-                />
-                {errors.area && <p className="mt-1 text-sm text-red-600">{errors.area}</p>}
+            {/* Enhanced workflow steps indicator */}
+            <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+              <h3 className="text-sm font-semibold text-blue-800 mb-3">Post Creation Workflow</h3>
+              <div className="flex items-center space-x-4 text-xs">
+                <div className={`flex items-center space-x-2 ${locationData ? 'text-green-600' : 'text-blue-600 font-medium'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${locationData ? 'bg-green-500' : 'bg-blue-500'}`}>
+                    {locationData ? '✓' : '1'}
+                  </div>
+                  <span>Select Location</span>
+                  {!locationData && <span className="text-blue-600 font-medium">(Click on map below)</span>}
+                </div>
+                <div className="flex-1 h-px bg-gray-300"></div>
+                <div className={`flex items-center space-x-2 ${locationData && assignee ? 'text-green-600' : locationData ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${locationData && assignee ? 'bg-green-500' : locationData ? 'bg-blue-500' : 'bg-gray-400'}`}>
+                    {locationData && assignee ? '✓' : '2'}
+                  </div>
+                  <span>Choose Assignee</span>
+                  {locationData && !assignee && <span className="text-blue-600 font-medium">(Required)</span>}
+                </div>
+                <div className="flex-1 h-px bg-gray-300"></div>
+                <div className={`flex items-center space-x-2 ${content.trim() && locationData && assignee ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${content.trim() && locationData && assignee ? 'bg-blue-500' : 'bg-gray-400'}`}>
+                    3
+                  </div>
+                  <span>Create Post</span>
+                </div>
               </div>
             </div>
 
@@ -248,7 +243,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Location (Optional)
+                  Location * {!locationData && <span className="text-blue-600 font-normal">(Required to show representatives)</span>}
                 </label>
                 <button
                   type="button"
@@ -259,11 +254,27 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
                 </button>
               </div>
               
+              {!locationData && (
+                <div className="mb-3 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">Select Your Location First</p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Click anywhere on the map below to select your location. This will show available representatives for your area who can handle your issue.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {locationData && (
                 <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-md">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm font-medium text-green-800">Location Selected</p>
+                      <p className="text-sm font-medium text-green-800">✓ Location Selected</p>
                       <p className="text-sm text-green-700 mt-1">{locationData.address}</p>
                       <p className="text-xs text-green-600 mt-1">
                         {locationData.latitude.toFixed(6)}, {locationData.longitude.toFixed(6)}
@@ -271,7 +282,10 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setLocationData(null)}
+                      onClick={() => {
+                        setLocationData(null);
+                        setAssignee(null);
+                      }}
                       className="text-green-600 hover:text-green-800"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,7 +306,17 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
                   />
                 </div>
               )}
+
+              {errors.location && <p className="mt-1 text-sm text-red-600">{errors.location}</p>}
             </div>
+
+            {/* Assignee Selection */}
+            <AssigneeSelector
+              locationData={locationData}
+              selectedAssignee={assignee}
+              onAssigneeSelect={handleAssigneeSelect}
+              error={errors.assignee}
+            />
 
             {/* Role Tags Selection */}
             <div>

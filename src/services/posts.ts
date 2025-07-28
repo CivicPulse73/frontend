@@ -8,8 +8,6 @@ function transformPost(backendPost: any): CivicPost {
     // Map user_vote enum to boolean fields for backward compatibility
     is_upvoted: backendPost.user_vote === 'upvote',
     is_downvoted: backendPost.user_vote === 'downvote',
-    // Ensure location is mapped from area if needed
-    location: backendPost.location || backendPost.area,
     // Handle media_urls vs images backward compatibility
     images: backendPost.media_urls || backendPost.images,
     // Handle status enum differences
@@ -21,7 +19,6 @@ export interface PostFilters {
   page?: number
   size?: number
   post_type?: string
-  area?: string
   status?: string
   category?: string
   sort_by?: string

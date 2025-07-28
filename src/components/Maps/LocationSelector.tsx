@@ -454,55 +454,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
         </div>
       )}
 
-      {/* Improved Instructions */}
-      <div className="text-sm bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <div className="flex-shrink-0">
-            <svg className="w-5 h-5 text-blue-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <h4 className="font-medium text-blue-900 mb-2">How to select your location:</h4>
-            <div className="space-y-2 text-blue-800">
-              {!hasAttemptedLocation && !initialLocation && (
-                <div className="flex items-center space-x-2 bg-blue-100 rounded p-2 mb-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  <span className="text-blue-900 font-medium">🎯 Detecting your current location...</span>
-                </div>
-              )}
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                <span>🎯 <strong>Auto-positioned & zoomed:</strong> Map centers and zooms to your current location automatically</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                <span>🖱️ <strong>Click anywhere</strong> on the map to place your marker</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                <span>🖐️ <strong>Drag the marker</strong> to fine-tune the exact location</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                <span>📍 <strong>Use location button</strong> to select your exact current position</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                <span>🇮🇳 <strong>India only:</strong> Selection is restricted to Indian locations</span>
-              </div>
-              {position && (
-                <div className="flex items-center space-x-2 bg-green-100 rounded p-2 mt-2">
-                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-green-900 font-medium">✅ Location selected successfully!</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+
 
       {/* Address Display and Input */}
       {showAddressInput && locationData && (

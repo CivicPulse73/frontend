@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { usePosts } from '../contexts/PostContext'
 import { useUser } from '../contexts/UserContext'
-import { Camera, MapPin, Tag, CheckCircle, AlertCircle, X, Upload, Video, Image, LogIn } from 'lucide-react'
+import { Camera, MapPin, Tag, CheckCircle, AlertCircle, X, Upload, Video, Image, LogIn, Users } from 'lucide-react'
 import AuthModal from '../components/AuthModal'
 import { LocationSelector } from '../components/Maps/LocationSelector'
-import { LocationData } from '../types'
+import { AssigneeSelector } from '../components/Posts/AssigneeSelector'
+import { LocationData, AssigneeOption } from '../types'
 
 const postTypes = [
   { 
@@ -30,16 +31,6 @@ const postTypes = [
   }
 ]
 
-const categories = [
-  'Infrastructure', 'Public Safety', 'Transportation', 'Environment',
-  'Health', 'Education', 'Housing', 'Community Services'
-]
-
-const areas = [
-  'Downtown District', 'Riverside', 'Oak Hills', 'Sunset Valley',
-  'Pine Ridge', 'Cedar Park', 'Maple Heights', 'Willow Creek'
-]
-
 export default function Post() {
   const { addPost } = usePosts()
   const { user } = useUser()
@@ -51,13 +42,12 @@ export default function Post() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [locationData, setLocationData] = useState<LocationData | null>(null)
   const [showLocationSelector, setShowLocationSelector] = useState(false)
+  const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null)
   
   const [formData, setFormData] = useState({
     type: 'issue' as const,
     title: '',
     description: '',
-    area: '',
-    category: '',
     image: '',
     video: ''
   })
@@ -77,12 +67,8 @@ export default function Post() {
       newErrors.description = 'Description must be at least 10 characters'
     }
 
-    if (!formData.area) {
-      newErrors.area = 'Please select an area'
-    }
-
-    if (formData.type === 'issue' && !formData.category) {
-      newErrors.category = 'Please select a category for issues'
+    if (!selectedAssignee) {
+      newErrors.assignee = 'Please select a representative to assign this post to'
     }
 
     setErrors(newErrors)
@@ -91,6 +77,10 @@ export default function Post() {
 
   const handleLocationSelect = (location: LocationData) => {
     setLocationData(location)
+  }
+
+  const handleAssigneeSelect = (assigneeId: string | null) => {
+    setSelectedAssignee(assigneeId)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -122,10 +112,9 @@ export default function Post() {
         post_type: formData.type,
         title: formData.title,
         content: formData.description,
-        area: formData.area,
-        category: formData.category || undefined,
+        assignee: selectedAssignee,
         media_urls: mediaUrls.length > 0 ? mediaUrls : undefined,
-        location: locationData?.address || formData.area,
+        location: locationData?.address || undefined,
         latitude: locationData?.latitude || undefined,
         longitude: locationData?.longitude || undefined
       }
@@ -138,14 +127,13 @@ export default function Post() {
         type: 'issue',
         title: '',
         description: '',
-        area: '',
-        category: '',
         image: '',
         video: ''
       })
       setMediaUrl('')
       setMediaType('none')
       setLocationData(null)
+      setSelectedAssignee(null)
       setShowLocationSelector(false)
       setErrors({})
       setShowSuccess(true)
@@ -313,33 +301,6 @@ export default function Post() {
               </p>
             </div>
 
-            {/* Area */}
-            <div>
-              <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-2">
-                <MapPin className="w-4 h-4 inline mr-1" />
-                Area/Ward *
-              </label>
-              <select
-                id="area"
-                value={formData.area}
-                onChange={(e) => setFormData({...formData, area: e.target.value})}
-                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${
-                  errors.area ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select your area</option>
-                {areas.map((area) => (
-                  <option key={area} value={area}>{area}</option>
-                ))}
-              </select>
-              {errors.area && (
-                <p className="mt-1 text-sm text-red-600 flex items-center space-x-1">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>{errors.area}</span>
-                </p>
-              )}
-            </div>
-
             {/* Location Selection with Map */}
             <div>
               <div className="flex justify-between items-center mb-3">
@@ -361,16 +322,6 @@ export default function Post() {
                 </button>
               </div>
 
-              {/* Helper text when map is hidden */}
-              {!showLocationSelector && !locationData && (
-                <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-sm text-gray-600 flex items-center space-x-2">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <span>Add a precise location to help community members find and address this issue more effectively</span>
-                  </p>
-                </div>
-              )}
-              
               {locationData && (
                 <div className="mb-3 p-4 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-start justify-between">
@@ -431,34 +382,31 @@ export default function Post() {
               )}
             </div>
 
-            {/* Category (for issues) */}
-            {formData.type === 'issue' && (
-              <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                  <Tag className="w-4 h-4 inline mr-1" />
-                  Category *
-                </label>
-                <select
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({...formData, category: e.target.value})}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${
-                    errors.category ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select issue category</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-                {errors.category && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center space-x-1">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>{errors.category}</span>
+            {/* Assignee Selection */}
+            <div>              
+              <AssigneeSelector
+                locationData={locationData}
+                selectedAssignee={selectedAssignee}
+                onAssigneeSelect={handleAssigneeSelect}
+                error={errors.assignee}
+              />
+              
+              {errors.assignee && (
+                <p className="mt-1 text-sm text-red-600 flex items-center space-x-1">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{errors.assignee}</span>
+                </p>
+              )}
+              
+              {!locationData && (
+                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700 flex items-center space-x-1">
+                    <MapPin className="w-4 h-4" />
+                    <span>Select a location above to see available representatives</span>
                   </p>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
 
             {/* Media Upload */}
             <div>

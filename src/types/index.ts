@@ -39,6 +39,16 @@ export interface LocationData {
   pincode?: string;
 }
 
+export interface AssigneeOption {
+  id: string;
+  name: string;
+  type: 'representative';
+  title?: string;
+  abbreviation?: string;
+  jurisdiction?: string;
+  level_rank?: number;
+}
+
 export interface RepresentativeAccount {
   id: string;
   title: {
@@ -98,14 +108,12 @@ export interface CivicPost {
   image?: string
   video?: string
   media_urls?: string[]  // Changed from 'images' to 'media_urls' to match backend
-  area?: string  // Changed from 'location' to 'area' to match backend
   location?: string  // Keep both for backward compatibility
   latitude?: number  // Geographic coordinates
   longitude?: number  // Geographic coordinates
   created_at: string  // Changed from 'timestamp' to 'created_at'
   updated_at: string  // Added updated_at
   status?: 'open' | 'in_progress' | 'resolved' | 'closed'  // Updated to match backend enum
-  category?: string
   upvotes: number
   downvotes: number
   comment_count: number
