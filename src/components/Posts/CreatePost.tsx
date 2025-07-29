@@ -3,6 +3,7 @@ import { roleService, Role } from '../../services/roleService';
 import { RoleTag } from './RoleTag';
 import { LocationSelector } from '../Maps/LocationSelector';
 import { AssigneeSelector } from './AssigneeSelector';
+import { MediaUploader } from './MediaUploader';
 import { LocationData } from '../../types';
 import { apiClient } from '../../services/api';
 
@@ -23,6 +24,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [showLocationSelector, setShowLocationSelector] = useState(true); // Start with map open
   const [assignee, setAssignee] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,6 +64,15 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
     setAssignee(assigneeId);
   };
 
+  const handleFilesChange = (files: File[]) => {
+    setSelectedFiles(files);
+    // Clear any previous file upload errors
+    if (errors.files) {
+      const { files: _, ...otherErrors } = errors;
+      setErrors(otherErrors);
+    }
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -99,27 +110,110 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
     setIsSubmitting(true);
 
     try {
-      const postData = {
-        title: title.trim(),
-        content: content.trim(),
-        post_type: postType,
-        assignee: assignee,
-        location: locationData?.address || undefined,
-        latitude: locationData?.latitude || undefined,
-        longitude: locationData?.longitude || undefined,
-        tags: selectedRoles.map(role => role.abbreviation),
-      };
+      // Check if we have files to upload
+      if (selectedFiles.length > 0) {
+        // Use FormData for multipart upload
+        const formData = new FormData();
+        
+        // Add text fields
+        formData.append('title', title.trim());
+        formData.append('content', content.trim());
+        formData.append('post_type', postType);
+        
+        if (assignee) formData.append('assignee', assignee);
+        if (locationData?.address) formData.append('location', locationData.address);
+        if (locationData?.latitude) formData.append('latitude', locationData.latitude.toString());
+        if (locationData?.longitude) formData.append('longitude', locationData.longitude.toString());
+        if (selectedRoles.length > 0) formData.append('tags', JSON.stringify(selectedRoles.map(role => role.abbreviation)));
 
-      const response = await apiClient.post<any>('/posts', postData);
-      
-      if (response && typeof response === 'object' && 'success' in response && response.success) {
-        onSuccess();
-        onClose();
+        // Add files
+        selectedFiles.forEach(file => {
+          formData.append('files', file);
+        });
+
+        // Get auth token
+        const token = localStorage.getItem('access_token');
+        
+        // Use XMLHttpRequest for file upload with progress
+        const response = await new Promise<any>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          
+          xhr.onload = () => {
+            if (xhr.status === 201) {
+              const response = JSON.parse(xhr.responseText);
+              resolve(response);
+            } else {
+              const error = JSON.parse(xhr.responseText);
+              reject(new Error(error.detail || 'Failed to create post'));
+            }
+          };
+
+          xhr.onerror = () => {
+            reject(new Error('Network error occurred'));
+          };
+
+          xhr.open('POST', '/api/v1/posts');
+          
+          if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          }
+
+          xhr.send(formData);
+        });
+
+        if (response && typeof response === 'object' && 'success' in response && response.success) {
+          // Reset form on success
+          setTitle('');
+          setContent('');
+          setPostType('issue');
+          setLocationData(null);
+          setAssignee(null);
+          setSelectedRoles([]);
+          setSelectedFiles([]);
+          setErrors({});
+          
+          onSuccess();
+          onClose();
+        } else {
+          const errorMessage = (response && typeof response === 'object' && 'error' in response) 
+            ? (response as any).error 
+            : 'Failed to create post';
+          setErrors({ submit: errorMessage });
+        }
       } else {
-        const errorMessage = (response && typeof response === 'object' && 'error' in response) 
-          ? (response as any).error 
-          : 'Failed to create post';
-        setErrors({ submit: errorMessage });
+        // Regular JSON post without files
+        const postData = {
+          title: title.trim(),
+          content: content.trim(),
+          post_type: postType,
+          assignee: assignee,
+          location: locationData?.address || undefined,
+          latitude: locationData?.latitude || undefined,
+          longitude: locationData?.longitude || undefined,
+          tags: selectedRoles.map(role => role.abbreviation),
+        };
+
+        const response = await apiClient.post<any>('/posts', postData);
+        
+        if (response && typeof response === 'object' && 'success' in response && response.success) {
+          // Reset form on success
+          setTitle('');
+          setContent('');
+          setPostType('issue');
+          setLocationData(null);
+          setAssignee(null);
+          setSelectedRoles([]);
+          setSelectedFiles([]);
+          setErrors({});
+          
+          onSuccess();
+          onClose();
+        } else {
+          const errorMessage = (response && typeof response === 'object' && 'error' in response) 
+            ? (response as any).error 
+            : 'Failed to create post';
+          setErrors({ submit: errorMessage });
+        }
       }
     } catch (error: any) {
       console.error('Error creating post:', error);
@@ -316,6 +410,13 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
               selectedAssignee={assignee}
               onAssigneeSelect={handleAssigneeSelect}
               error={errors.assignee}
+            />
+
+            {/* Media Upload */}
+            <MediaUploader
+              onFilesChange={handleFilesChange}
+              error={errors.files}
+              maxFiles={10}
             />
 
             {/* Role Tags Selection */}

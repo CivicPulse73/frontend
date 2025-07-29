@@ -5,6 +5,7 @@ import { Camera, MapPin, Tag, CheckCircle, AlertCircle, X, Upload, Video, Image,
 import AuthModal from '../components/AuthModal'
 import { LocationSelector } from '../components/Maps/LocationSelector'
 import { AssigneeSelector } from '../components/Posts/AssigneeSelector'
+import { MediaUploader } from '../components/Posts/MediaUploader'
 import { LocationData, AssigneeOption } from '../types'
 
 const postTypes = [
@@ -37,19 +38,16 @@ export default function Post() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [mediaUrl, setMediaUrl] = useState<string>('')
-  const [mediaType, setMediaType] = useState<'none' | 'image' | 'video'>('none')
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [locationData, setLocationData] = useState<LocationData | null>(null)
   const [showLocationSelector, setShowLocationSelector] = useState(false)
   const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   
   const [formData, setFormData] = useState({
     type: 'issue' as const,
     title: '',
-    description: '',
-    image: '',
-    video: ''
+    description: ''
   })
 
   const validateForm = () => {
@@ -83,6 +81,15 @@ export default function Post() {
     setSelectedAssignee(assigneeId)
   }
 
+  const handleFilesChange = (files: File[]) => {
+    setSelectedFiles(files)
+    // Clear any previous file upload errors
+    if (errors.files) {
+      const { files: _, ...otherErrors } = errors;
+      setErrors(otherErrors);
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     console.log('Form submitted', { user, formData })
@@ -104,34 +111,77 @@ export default function Post() {
     setErrors(otherErrors)
 
     try {
-      const mediaUrls = []
-      if (formData.image) mediaUrls.push(formData.image)
-      if (formData.video) mediaUrls.push(formData.video)
-      
-      const postPayload = {
-        post_type: formData.type,
-        title: formData.title,
-        content: formData.description,
-        assignee: selectedAssignee,
-        media_urls: mediaUrls.length > 0 ? mediaUrls : undefined,
-        location: locationData?.address || undefined,
-        latitude: locationData?.latitude || undefined,
-        longitude: locationData?.longitude || undefined
+      // Check if we have files to upload
+      if (selectedFiles.length > 0) {
+        // Use FormData for multipart upload
+        const formDataUpload = new FormData();
+        
+        // Add text fields
+        formDataUpload.append('title', formData.title);
+        formDataUpload.append('content', formData.description);
+        formDataUpload.append('post_type', formData.type);
+        
+        if (selectedAssignee) formDataUpload.append('assignee', selectedAssignee);
+        if (locationData?.address) formDataUpload.append('location', locationData.address);
+        if (locationData?.latitude) formDataUpload.append('latitude', locationData.latitude.toString());
+        if (locationData?.longitude) formDataUpload.append('longitude', locationData.longitude.toString());
+
+        // Add files
+        selectedFiles.forEach(file => {
+          formDataUpload.append('files', file);
+        });
+
+        // Get auth token
+        const token = localStorage.getItem('access_token');
+        
+        // Use XMLHttpRequest for file upload with progress
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          
+          xhr.onload = () => {
+            if (xhr.status === 201) {
+              resolve();
+            } else {
+              const error = JSON.parse(xhr.responseText);
+              reject(new Error(error.detail || 'Failed to create post'));
+            }
+          };
+
+          xhr.onerror = () => {
+            reject(new Error('Network error occurred'));
+          };
+
+          xhr.open('POST', '/api/v1/posts');
+          
+          if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          }
+
+          xhr.send(formDataUpload);
+        });
+      } else {
+        // Regular JSON post without files
+        const postPayload = {
+          post_type: formData.type,
+          title: formData.title,
+          content: formData.description,
+          assignee: selectedAssignee,
+          location: locationData?.address || undefined,
+          latitude: locationData?.latitude || undefined,
+          longitude: locationData?.longitude || undefined
+        }
+        
+        console.log('Submitting post:', postPayload)
+        await addPost(postPayload)
       }
-      
-      console.log('Submitting post:', postPayload)
-      await addPost(postPayload)
 
       // Reset form
       setFormData({
         type: 'issue',
         title: '',
-        description: '',
-        image: '',
-        video: ''
+        description: ''
       })
-      setMediaUrl('')
-      setMediaType('none')
+      setSelectedFiles([])
       setLocationData(null)
       setSelectedAssignee(null)
       setShowLocationSelector(false)
@@ -149,31 +199,6 @@ export default function Post() {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const handleMediaChange = (url: string) => {
-    // Auto-detect media type based on file extension
-    const isVideo = /\.(mp4|webm|ogg|mov|avi|wmv)(\?.*)?$/i.test(url)
-    const isImage = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(url) || (!isVideo && url.length > 0)
-    
-    if (isVideo) {
-      setFormData({...formData, video: url, image: ''})
-      setMediaType('video')
-    } else if (isImage) {
-      setFormData({...formData, image: url, video: ''})
-      setMediaType('image')
-    } else if (url.length === 0) {
-      setFormData({...formData, image: '', video: ''})
-      setMediaType('none')
-    }
-    
-    setMediaUrl(url)
-  }
-
-  const clearMedia = () => {
-    setFormData({...formData, image: '', video: ''})
-    setMediaUrl('')
-    setMediaType('none')
   }
 
   return (
@@ -409,103 +434,11 @@ export default function Post() {
             </div>
 
             {/* Media Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Camera className="w-4 h-4 inline mr-1" />
-                Add Media (optional)
-              </label>
-              
-              {mediaUrl ? (
-                <div className="relative">
-                  {mediaType === 'image' && (
-                    <img
-                      src={mediaUrl}
-                      alt="Preview"
-                      className="w-full h-48 object-cover rounded-xl border-2 border-gray-200"
-                    />
-                  )}
-                  {mediaType === 'video' && (
-                    <video
-                      src={mediaUrl}
-                      controls
-                      className="w-full h-48 object-cover rounded-xl border-2 border-gray-200"
-                      preload="metadata"
-                    >
-                      Your browser does not support the video tag.
-                    </video>
-                  )}
-                  
-                  {/* Media Controls */}
-                  <div className="absolute top-2 right-2 flex space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Allow replacing media
-                        setMediaUrl('')
-                        setMediaType('none')
-                      }}
-                      className="p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
-                      title="Replace media"
-                    >
-                      <Upload className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={clearMedia}
-                      className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                      title="Remove media"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  
-                  {/* Media Type Indicator */}
-                  <div className="absolute bottom-2 left-2">
-                    <span className="bg-black bg-opacity-70 text-white px-2 py-1 rounded-lg text-xs flex items-center space-x-1">
-                      {mediaType === 'image' ? (
-                        <>
-                          <Image className="w-3 h-3" />
-                          <span>Photo</span>
-                        </>
-                      ) : (
-                        <>
-                          <Video className="w-3 h-3" />
-                          <span>Video</span>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <input
-                    type="url"
-                    placeholder="Paste image or video URL here..."
-                    value={mediaUrl}
-                    onChange={(e) => handleMediaChange(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
-                  <div className="mt-2 text-center">
-                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-primary-400 transition-colors">
-                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">
-                        Enter a media URL above - supports images (JPG, PNG, GIF) and videos (MP4, WebM)
-                      </p>
-                      <div className="mt-2 flex justify-center space-x-4 text-xs text-gray-400">
-                        <span className="flex items-center space-x-1">
-                          <Image className="w-3 h-3" />
-                          <span>Images</span>
-                        </span>
-                        <span className="flex items-center space-x-1">
-                          <Video className="w-3 h-3" />
-                          <span>Videos</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <MediaUploader
+              onFilesChange={handleFilesChange}
+              error={errors.files}
+              maxFiles={10}
+            />
 
             {/* Submit Error */}
             {errors.submit && (

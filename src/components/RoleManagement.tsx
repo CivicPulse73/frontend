@@ -39,11 +39,6 @@ export default function RoleManagement({ onClose }: RoleManagementProps) {
   const [formData, setFormData] = useState<FormData>(initialFormData)
   const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-    level: '',
-    is_elected: false,
-    term_length: undefined as number | undefined,
-    status: 'active'
-  })
 
   useEffect(() => {
     loadRoles()

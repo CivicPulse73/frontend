@@ -204,22 +204,7 @@ export const AssigneeSelector: React.FC<AssigneeSelectorProps> = ({
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Assign to Representative *
         </label>
-        <div className="p-4 bg-blue-50 border-2 border-dashed border-blue-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-blue-800 mb-1">Location Required</p>
-              <p className="text-sm text-blue-700 mb-2">
-                Select a location above to see representatives in your area
-              </p>
-              <p className="text-xs text-blue-600">
-                💡 Tip: Click on the map or use the location button to set your precise location
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* Location required message removed */}
       </div>
     );
   }
