@@ -124,12 +124,9 @@ export default function FeedCardNew({ post }: FeedCardProps) {
                 {/* Use rep_accounts info first, fallback to role_name */}
                 {(() => {
                   // Debug logging
-                  console.log('FeedCardNew - Author data:', post.author);
-                  console.log('FeedCardNew - Rep accounts:', post.author?.rep_accounts);
                   
                   if (post.author?.rep_accounts && post.author.rep_accounts.length > 0) {
                     const repAccount = post.author.rep_accounts[0];
-                    console.log('FeedCardNew - Using rep account:', repAccount);
                     return (
                       <span className="flex items-center space-x-1">
                         {repAccount.title.abbreviation && (

@@ -13,7 +13,6 @@ export interface RegisterRequest {
   display_name?: string
   bio?: string
   avatar_url?: string
-  role?: string | null
 }
 
 export interface RepresentativeAccount {
@@ -43,7 +42,6 @@ export interface User {
   is_active: boolean
   created_at: string
   updated_at: string
-  role?: any
   cover_photo?: string
   verified?: boolean
   rep_accounts?: RepresentativeAccount[]

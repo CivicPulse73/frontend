@@ -9,9 +9,10 @@ import { Crown, Settings } from '../components/Icons'
 import Avatar from '../components/Avatar'
 import FeedCard from '../components/FeedCard'
 import AuthModal from '../components/AuthModal'
+import RepresentativeAccountTags from '../components/RepresentativeAccountTags'
 
 export default function Profile() {
-  const { user, loading } = useUser()
+  const { user, loading, refreshUser } = useUser()
   const { posts } = usePosts()
   const navigate = useNavigate()
   const [userPosts, setUserPosts] = useState<CivicPost[]>([])
@@ -23,35 +24,42 @@ export default function Profile() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [isUploadingCover, setIsUploadingCover] = useState(false)
+  const [freshUserData, setFreshUserData] = useState<any>(null)
   const avatarFileInputRef = useRef<HTMLInputElement>(null)
   const coverFileInputRef = useRef<HTMLInputElement>(null)
 
-  // Load user posts when user is available or when tab changes
+  // Load fresh user data including rep_accounts
   useEffect(() => {
-    if (user && activeTab === 'posts') {
-      loadUserPosts()
+    const loadFreshUserData = async () => {
+      if (user) {
+        try {
+          const freshUser = await userService.getCurrentUser()
+          setFreshUserData(freshUser)
+          console.log('🔍 rep_accounts value:', freshUser.rep_accounts)
+        } catch (error) {
+          console.error('❌ Failed to load fresh user data:', error)
+        }
+      }
     }
-  }, [user, activeTab])
+    
+    loadFreshUserData()
+  }, [user])
 
-  // Also reload user posts when the user changes (e.g., after login)
+  // Debug effect to monitor freshUserData changes
   useEffect(() => {
-    if (user && activeTab === 'posts') {
-      // Clear existing posts and reload
-      setUserPosts([])
-      loadUserPosts()
+    if (freshUserData?.rep_accounts) {
+      console.log('🎯 freshUserData.rep_accounts:', freshUserData.rep_accounts)
     }
-  }, [user?.id])
+  }, [freshUserData])
 
   const loadUserPosts = async () => {
     if (!user) return
     
     try {
       setUserPostsLoading(true)
-      console.log('📝 Loading user posts for:', user.username)
       
       // Always try API first for fresh data
       const response = await userService.getCurrentUserPosts()
-      console.log('✅ Loaded user posts:', response.posts.length)
       setUserPosts(response.posts)
       
     } catch (error) {
@@ -59,12 +67,20 @@ export default function Profile() {
       
       // Fallback to filtering from general posts if API fails
       const existingUserPosts = posts.filter(post => post.author.id === user.id)
-      console.log('🔄 Using fallback posts:', existingUserPosts.length)
       setUserPosts(existingUserPosts)
     } finally {
       setUserPostsLoading(false)
     }
   }
+
+  // Load user posts when user is available or when tab changes
+  useEffect(() => {
+    if (user && activeTab === 'posts') {
+      // Clear existing posts and reload fresh data
+      setUserPosts([])
+      loadUserPosts()
+    }
+  }, [user?.id, activeTab, posts]) // Added posts dependency since fallback uses it
 
   // Show auth modal if user is not logged in
   if (!user && !loading) {
@@ -190,7 +206,6 @@ export default function Profile() {
   }
 
   const handleEditProfile = () => {
-    console.log('Edit profile clicked')
     // TODO: Navigate to edit profile page or open edit modal
   }
 
@@ -214,7 +229,6 @@ export default function Profile() {
   }
 
   const handleMoreOptions = () => {
-    console.log('More options clicked')
     // TODO: Show more options menu
   }
 
@@ -329,8 +343,8 @@ export default function Profile() {
             </div>
             <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
               <span className="flex items-center space-x-1 capitalize">
-                <span className={`w-2 h-2 rounded-full ${user.role === 'representative' ? 'bg-blue-500' : 'bg-green-500'}`}></span>
-                <span>{user.role}</span>
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <span>Citizen</span>
               </span>
               <span className="flex items-center space-x-1">
                 <MapPin className="w-3 h-3" />
@@ -342,34 +356,25 @@ export default function Profile() {
               </span>
             </div>
             
-            {/* Representative Info - Use rep_accounts first, fallback to linked_representative */}
-            {(user.rep_accounts && user.rep_accounts.length > 0) ? (
-              <div className="mb-2">
-                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
-                  <Crown className="w-4 h-4" />
-                  <span>
-                    {user.rep_accounts[0].title.abbreviation && `${user.rep_accounts[0].title.abbreviation} `}
-                    {user.rep_accounts[0].title.title_name}
-                  </span>
-                  <span className="text-primary-600">•</span>
-                  <span className="text-primary-600">{user.rep_accounts[0].jurisdiction.name}</span>
+            {/* Representative Account Tags */}
+            {freshUserData?.rep_accounts && freshUserData.rep_accounts.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center space-x-2 mb-2">
+                  <h4 className="text-sm font-medium text-gray-700">Representative Accounts</h4>
+                  <span className="text-xs text-gray-500">({freshUserData.rep_accounts.length})</span>
                 </div>
-              </div>
-            ) : user.linked_representative && (
-              <div className="mb-2">
-                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
-                  <Crown className="w-4 h-4" />
-                  <span>
-                    {user.linked_representative.abbreviation && `${user.linked_representative.abbreviation} `}
-                    {user.linked_representative.title_name}
-                  </span>
-                  <span className="text-primary-600">•</span>
-                  <span className="text-primary-600">{user.linked_representative.jurisdiction_name}</span>
-                </div>
+                <RepresentativeAccountTags 
+                  repAccounts={freshUserData.rep_accounts}
+                  maxDisplay={2}
+                  size="md"
+                  showJurisdiction={true}
+                  variant="default"
+                />
               </div>
             )}
+            
             <p className="text-gray-700 text-sm">
-              Passionate about making our community better. Let's work together to solve local issues and create positive change! 🏘️✨
+              {user.bio || "Passionate about making our community better. Let's work together to solve local issues and create positive change! 🏘️✨"}
             </p>
           </div>
 

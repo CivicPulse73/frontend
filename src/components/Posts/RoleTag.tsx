@@ -1,6 +1,20 @@
 import React, { useMemo } from 'react';
 import { Tooltip } from '../UI/Tooltip';
-import { Role } from '../../services/roleService';
+import { Crown, Shield, Building, MapPin, Users, FileText } from 'lucide-react';
+
+// Define a simple Role interface locally since roleService is removed
+interface Role {
+  id: string;
+  role_name: string;
+  abbreviation: string;
+  level_rank: number;
+  role_type: string;
+  description: string;
+  level: string;
+  is_elected: boolean;
+  term_length: number;
+  status: string;
+}
 
 interface RoleTagProps {
   role: Role;

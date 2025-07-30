@@ -34,12 +34,12 @@ class AuthService {
     if (response.success && response.data) {
       // Store tokens
       apiClient.setToken(response.data.tokens.access_token)
-      localStorage.setItem('access_token', response.data.tokens.access_token)
-      localStorage.setItem('refresh_token', response.data.tokens.refresh_token)
+      localStorage.setItem('civic_access_token', response.data.tokens.access_token)
+      localStorage.setItem('civic_refresh_token', response.data.tokens.refresh_token)
       
       // Store user data in localStorage for cross-tab access
-      localStorage.setItem('current_user', JSON.stringify(response.data.user))
-      localStorage.setItem('current_user_expiry', (Date.now() + 5 * 60 * 1000).toString())
+      localStorage.setItem('civic_current_user', JSON.stringify(response.data.user))
+      localStorage.setItem('civic_current_user_expiry', (Date.now() + 5 * 60 * 1000).toString())
       
       // Start token refresh timer
       this.startTokenRefreshTimer()
@@ -65,12 +65,12 @@ class AuthService {
     if (response.success && response.data) {
       // Store tokens
       apiClient.setToken(response.data.tokens.access_token)
-      localStorage.setItem('access_token', response.data.tokens.access_token)
-      localStorage.setItem('refresh_token', response.data.tokens.refresh_token)
+      localStorage.setItem('civic_access_token', response.data.tokens.access_token)
+      localStorage.setItem('civic_refresh_token', response.data.tokens.refresh_token)
       
       // Store user data in localStorage for cross-tab access
-      localStorage.setItem('current_user', JSON.stringify(response.data.user))
-      localStorage.setItem('current_user_expiry', (Date.now() + 5 * 60 * 1000).toString())
+      localStorage.setItem('civic_current_user', JSON.stringify(response.data.user))
+      localStorage.setItem('civic_current_user_expiry', (Date.now() + 5 * 60 * 1000).toString())
       
       // Start token refresh timer
       this.startTokenRefreshTimer()
@@ -87,7 +87,7 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
-    const refreshToken = localStorage.getItem('refresh_token')
+    const refreshToken = localStorage.getItem('civic_refresh_token')
     
     // Stop token refresh timer
     this.stopTokenRefreshTimer()
@@ -101,10 +101,10 @@ class AuthService {
     } finally {
       // Clear tokens regardless of API call success
       apiClient.setToken(null)
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
-      localStorage.removeItem('current_user')
-      localStorage.removeItem('current_user_expiry')
+      localStorage.removeItem('civic_access_token')
+      localStorage.removeItem('civic_refresh_token')
+      localStorage.removeItem('civic_current_user')
+      localStorage.removeItem('civic_current_user_expiry')
       
       // Broadcast logout event to other tabs
       window.dispatchEvent(new CustomEvent('user-logout'))
@@ -112,7 +112,7 @@ class AuthService {
   }
 
   async refreshToken(): Promise<string | null> {
-    const refreshToken = localStorage.getItem('refresh_token')
+    const refreshToken = localStorage.getItem('civic_refresh_token')
     
     if (!refreshToken) {
       return null
@@ -126,22 +126,22 @@ class AuthService {
       }>('/auth/refresh', { refresh_token: refreshToken })
       
       apiClient.setToken(response.access_token)
-      localStorage.setItem('access_token', response.access_token)
-      localStorage.setItem('refresh_token', response.refresh_token)
+      localStorage.setItem('civic_access_token', response.access_token)
+      localStorage.setItem('civic_refresh_token', response.refresh_token)
       return response.access_token
     } catch (error) {
       console.error('Token refresh failed:', error)
       // Clear invalid tokens
       apiClient.setToken(null)
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
+      localStorage.removeItem('civic_access_token')
+      localStorage.removeItem('civic_refresh_token')
       this.stopTokenRefreshTimer()
       return null
     }
   }
 
   getCurrentToken(): string | null {
-    return localStorage.getItem('access_token')
+    return localStorage.getItem('civic_access_token')
   }
 
   isAuthenticated(): boolean {

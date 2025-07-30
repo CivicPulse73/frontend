@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
-import { roleService, Role } from '../../services/roleService';
-import { RoleTag } from './RoleTag';
+import { useState } from 'react';
 import { LocationSelector } from '../Maps/LocationSelector';
 import { AssigneeSelector } from './AssigneeSelector';
 import { MediaUploader } from './MediaUploader';
@@ -13,10 +11,6 @@ interface CreatePostProps {
 }
 
 export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) => {
-  const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
-  const [selectedRoles, setSelectedRoles] = useState<Role[]>([]);
-  const [roleSearchQuery, setRoleSearchQuery] = useState('');
-  
   // Form state
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -29,25 +23,6 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const loadRoles = async () => {
-      await roleService.ensureRolesLoaded();
-      setAvailableRoles(roleService.getRoles());
-    };
-    loadRoles();
-  }, []);
-
-  const filteredRoles = availableRoles.filter(role => 
-    role.role_name.toLowerCase().includes(roleSearchQuery.toLowerCase()) ||
-    role.abbreviation.toLowerCase().includes(roleSearchQuery.toLowerCase()) ||
-    role.description.toLowerCase().includes(roleSearchQuery.toLowerCase())
-  );
-
-  const handleRoleSelect = (role: Role) => {
-    if (!selectedRoles.find(r => r.id === role.id)) {
-      setSelectedRoles([...selectedRoles, role].sort((a, b) => a.level_rank - b.level_rank));
-    }
   };
 
   const handleRoleRemove = (roleId: string) => {

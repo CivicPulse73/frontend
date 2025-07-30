@@ -12,7 +12,6 @@ import { PostProvider } from './contexts/PostContext'
 import { UserProvider } from './contexts/UserContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { ErrorBoundary, NetworkStatus } from './components/ErrorBoundary'
-import { roleService } from './services/roleService'
 import { authManager } from './services/authManager'
 import { useEffect, Suspense } from 'react'
 import DevUtils from './utils/devUtils'
@@ -57,10 +56,6 @@ function App() {
             await authManager.logout()
           }
         }
-        
-        // Preload roles
-        await roleService.fetchRoles()
-        console.log('Roles preloaded successfully')
       } catch (error) {
         console.warn('Failed to initialize app:', error)
       }

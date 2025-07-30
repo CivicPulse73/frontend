@@ -11,8 +11,18 @@ export default function Home() {
 
   // Load posts only when component mounts and if we don't have any posts
   useEffect(() => {
+    let isMounted = true
+    
     if (posts.length === 0 && !loading) {
-      loadPosts({}, true)
+      loadPosts({}, true).catch(error => {
+        if (isMounted) {
+          console.error('Failed to load posts:', error)
+        }
+      })
+    }
+    
+    return () => {
+      isMounted = false
     }
   }, [])
 

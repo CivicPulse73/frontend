@@ -70,7 +70,6 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: string;
   jurisdiction_id?: string;
   jurisdiction_name?: string;
   is_active: boolean;
@@ -95,7 +94,7 @@ export interface Author {
   level_rank?: number
   verified?: boolean  // Added verified field for compatibility
   bio?: string  // Added bio field for compatibility
-  rep_accounts?: RepresentativeAccount[]  // Added rep_accounts for complete user data
+  rep_accounts?: RepresentativeAccount[]  // Representative accounts for this user
 }
 
 export interface CivicPost {

@@ -45,7 +45,13 @@ export const userService = {
       }
     }
     
-    const user = await apiClient.get<User>('/users/profile')
+    const response = await apiClient.get<ApiResponse<User>>('/users/profile')
+    
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Failed to get user profile')
+    }
+    
+    const user = response.data
     
     // Update cache and localStorage
     userCache = user
@@ -66,7 +72,6 @@ export const userService = {
         throw new Error(response.message || 'Failed to get user posts')
       }
       
-      console.log('📝 Retrieved user posts:', response.data.posts.length)
       return response.data
     } catch (error) {
       console.error('❌ Get user posts error:', error)

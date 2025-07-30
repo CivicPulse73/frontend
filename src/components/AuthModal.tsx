@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { X, Eye, EyeOff, Loader2 } from 'lucide-react'
-import RoleSelector from './RoleSelector'
 
 interface LoginData {
   email: string
@@ -14,7 +13,6 @@ interface RegisterData {
   username: string
   display_name: string
   bio?: string
-  role?: string | null
 }
 
 interface AuthModalProps {
@@ -41,8 +39,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
     password: '',
     username: '',
     display_name: '',
-    bio: '',
-    role: null  // Start with no role selected (defaults to citizen)
+    bio: ''
   })
 
   if (!isOpen) return null

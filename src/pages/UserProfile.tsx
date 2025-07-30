@@ -3,6 +3,7 @@ import { ArrowLeft, Settings, Edit, MessageCircle, TrendingUp } from 'lucide-rea
 import { usePosts } from '../contexts/PostContext'
 import { useUser } from '../contexts/UserContext'
 import Avatar from '../components/Avatar'
+import RepresentativeAccountTags from '../components/RepresentativeAccountTags'
 
 export default function UserProfile() {
   const { userId } = useParams()
@@ -80,17 +81,21 @@ export default function UserProfile() {
                 </div>
               )}
             </div>
-            <div className="flex items-center space-x-2 mb-2">
-              {/* Use rep_accounts info first, fallback to role_name/abbreviation */}
-              {(profileUser.rep_accounts && profileUser.rep_accounts.length > 0) ? (
-                <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium flex items-center space-x-1">
-                  {profileUser.rep_accounts[0].title.abbreviation && (
-                    <span className="font-bold">{profileUser.rep_accounts[0].title.abbreviation}</span>
-                  )}
-                  <span>{profileUser.rep_accounts[0].title.title_name}</span>
-                  <span className="text-primary-600">•</span>
-                  <span className="text-primary-600">{profileUser.rep_accounts[0].jurisdiction.name}</span>
-                </span>
+            <div className="mb-2">
+              {/* Representative Account Tags */}
+              {profileUser.rep_accounts && profileUser.rep_accounts.length > 0 ? (
+                <div className="mb-3">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <h4 className="text-sm font-medium text-gray-700">Representative Accounts</h4>
+                    <span className="text-xs text-gray-500">({profileUser.rep_accounts.length})</span>
+                  </div>
+                  <RepresentativeAccountTags 
+                    repAccounts={profileUser.rep_accounts}
+                    maxDisplay={3}
+                    size="md"
+                    showJurisdiction={true}
+                  />
+                </div>
               ) : profileUser.role_name ? (
                 <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium flex items-center space-x-1">
                   {profileUser.abbreviation && (
