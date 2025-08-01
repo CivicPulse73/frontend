@@ -70,6 +70,33 @@ export const postsService = {
     }
   },
 
+  async getAssignedPosts(representativeIds: string[], filters: PostFilters = {}): Promise<PaginatedResponse<CivicPost>> {
+    const searchParams = new URLSearchParams()
+    
+    // Add assignee filters
+    representativeIds.forEach(id => {
+      searchParams.append('assignee', id)
+    })
+    
+    // Add other filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && key !== 'assignee') {
+        searchParams.append(key, value.toString())
+      }
+    })
+
+    const queryString = searchParams.toString()
+    const endpoint = `/posts/posts-only${queryString ? `?${queryString}` : ''}`
+    
+    const response = await apiClient.get<PaginatedResponse<any>>(endpoint)
+    
+    // Transform backend response to frontend format
+    return {
+      ...response,
+      items: response.items.map(transformPost)
+    }
+  },
+
   async getPost(postId: string): Promise<CivicPost> {
     const response = await apiClient.get<ApiResponse<{ post: any }>>(`/posts/${postId}`)
     if (response.success && response.data?.post) {

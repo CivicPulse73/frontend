@@ -1,15 +1,22 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { ArrowLeft, Settings, Edit, MessageCircle, TrendingUp } from 'lucide-react'
 import { usePosts } from '../contexts/PostContext'
 import { useUser } from '../contexts/UserContext'
 import Avatar from '../components/Avatar'
 import RepresentativeAccountTags from '../components/RepresentativeAccountTags'
+import FollowButton from '../components/FollowButton'
+import FollowStats from '../components/FollowStats'
+import FollowModal from '../components/FollowModal'
 
 export default function UserProfile() {
   const { userId } = useParams()
   const navigate = useNavigate()
   const { posts } = usePosts()
   const { user: currentUser } = useUser()
+  const [showFollowModal, setShowFollowModal] = useState(false)
+  const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>('followers')
+  const [followStats, setFollowStats] = useState({ followers_count: 0, following_count: 0 })
 
   // Find the user from posts (in a real app, this would be from a user API)
   const profileUser = posts.find(post => post.author.id === userId)?.author
@@ -36,14 +43,22 @@ export default function UserProfile() {
   const totalComments = userPosts.reduce((sum, post) => sum + post.comment_count, 0)
   const isOwnProfile = currentUser?.id === userId
 
-  const handleFollowUser = () => {
-    console.log('Following user:', profileUser.display_name)
-    alert(`You are now following ${profileUser.display_name}!`)
-  }
-
   const handleSendMessage = () => {
     console.log('Sending message to:', profileUser.display_name)
     alert('Messaging feature coming soon!')
+  }
+
+  const handleFollowStatsClick = (type: 'followers' | 'following') => {
+    setFollowModalTab(type)
+    setShowFollowModal(true)
+  }
+
+  const handleFollowChange = (isFollowing: boolean, mutual: boolean) => {
+    // Update local stats when follow status changes
+    setFollowStats(prev => ({
+      ...prev,
+      followers_count: isFollowing ? prev.followers_count + 1 : prev.followers_count - 1
+    }))
   }
 
   return (
@@ -118,7 +133,39 @@ export default function UserProfile() {
           )}
         </div>
 
-        {/* Stats */}
+        {/* Stats with Follow Stats */}
+        <div className="mb-4">
+          <FollowStats
+            userId={userId!}
+            initialStats={{
+              followers_count: profileUser.followers_count || 0,
+              following_count: profileUser.following_count || 0
+            }}
+            onClick={handleFollowStatsClick}
+            className="justify-center"
+            size="md"
+          />
+        </div>
+
+        {/* Action Buttons */}
+        {!isOwnProfile && (
+          <div className="flex space-x-3 mb-4">
+            <FollowButton
+              userId={userId!}
+              className="flex-1"
+              onFollowChange={handleFollowChange}
+            />
+            <button
+              onClick={handleSendMessage}
+              className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center justify-center space-x-2"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Message</span>
+            </button>
+          </div>
+        )}
+
+        {/* Additional Stats */}
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center p-3 bg-blue-50 rounded-lg">
             <div className="text-xl font-bold text-blue-600">{userPosts.length}</div>
@@ -198,25 +245,14 @@ export default function UserProfile() {
         </div>
       </div>
 
-      {/* Contact/Follow Actions (for other users) */}
-      {!isOwnProfile && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-          <div className="flex space-x-3">
-            <button 
-              onClick={handleFollowUser}
-              className="flex-1 btn-primary"
-            >
-              Follow Updates
-            </button>
-            <button 
-              onClick={handleSendMessage}
-              className="flex-1 btn-secondary"
-            >
-              Send Message
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Follow Modal */}
+      <FollowModal
+        isOpen={showFollowModal}
+        onClose={() => setShowFollowModal(false)}
+        userId={userId!}
+        initialTab={followModalTab}
+        userName={profileUser.display_name || profileUser.username}
+      />
     </div>
   )
 }

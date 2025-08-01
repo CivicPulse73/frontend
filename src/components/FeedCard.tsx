@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { CivicPost } from '../types'
 import { MapPin, MessageCircle, ArrowUp, ArrowDown, Bookmark, Share, ChevronDown, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize, RotateCcw } from 'lucide-react'
 import { usePosts } from '../contexts/PostContext'
+import { useUser } from '../contexts/UserContext'
 import Avatar from './Avatar'
 import CommentModal from './CommentModal'
+import FollowButton from './FollowButton'
 
 interface FeedCardProps {
   post: CivicPost
@@ -33,6 +35,7 @@ const throttle = (func: Function, delay: number) => {
 export default function FeedCard({ post }: FeedCardProps) {
   const navigate = useNavigate()
   const { toggleUpvote, toggleDownvote, toggleSave } = usePosts()
+  const { user: currentUser } = useUser()
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [imageLoading, setImageLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
@@ -405,6 +408,17 @@ export default function FeedCard({ post }: FeedCardProps) {
           </div>
           
           <div className="flex items-center space-x-2">
+            {/* Follow Button - only show for other users */}
+            {currentUser && currentUser.id !== post.author.id && (
+              <FollowButton
+                userId={post.author.id}
+                size="sm"
+                variant="outline"
+                showIcon={false}
+                className="text-xs"
+              />
+            )}
+            
             {/* Show News tag for news articles, hide other post type tags */}
             {(post.source === 'news' || post.post_type === 'news') ? (
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPostTypeColor('news')} flex items-center space-x-1`}>

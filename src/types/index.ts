@@ -67,21 +67,20 @@ export interface RepresentativeAccount {
 }
 
 export interface User {
-  id: string;
-  email: string;
-  name: string;
-  jurisdiction_id?: string;
-  jurisdiction_name?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  avatar?: string;
-  bio?: string;
-  rep_accounts?: RepresentativeAccount[];
-  last_active?: string;
-  cover_photo?: string;
-  verified?: boolean;
-  linked_representative?: Representative;
+  id: string
+  username: string
+  email: string
+  display_name?: string
+  bio?: string
+  avatar_url?: string
+  cover_photo?: string
+  verified: boolean
+  created_at: string
+  role_name: string
+  role_id?: string
+  rep_accounts?: RepresentativeAccount[]
+  followers_count: number
+  following_count: number
 }
 
 export interface Author {
@@ -89,12 +88,13 @@ export interface Author {
   username: string
   display_name?: string
   avatar_url?: string
+  verified: boolean
   role_name?: string
+  rep_accounts?: RepresentativeAccount[]
+  followers_count: number
+  following_count: number
+  bio?: string
   abbreviation?: string
-  level_rank?: number
-  verified?: boolean  // Added verified field for compatibility
-  bio?: string  // Added bio field for compatibility
-  rep_accounts?: RepresentativeAccount[]  // Representative accounts for this user
 }
 
 export interface CivicPost {
@@ -185,4 +185,42 @@ export interface Analytics {
   averageResolutionTime: number
   topCategories: { name: string; count: number }[]
   areaPerformance: { area: string; rating: number; issuesCount: number }[]
+}
+
+// Follow-related types
+export interface FollowStats {
+  followers_count: number
+  following_count: number
+}
+
+export interface FollowUser {
+  id: string
+  username: string
+  display_name?: string
+  avatar_url?: string
+  is_verified: boolean
+  mutual: boolean
+  followed_at: string
+}
+
+export interface FollowResponse {
+  success: boolean
+  is_following: boolean
+  mutual: boolean
+  followers_count: number
+  following_count: number
+}
+
+export interface FollowStatusResponse {
+  is_following: boolean
+  is_followed_by: boolean
+  mutual: boolean
+}
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  size: number
+  has_more: boolean
 }

@@ -3,13 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { useUser } from '../contexts/UserContext'
 import { usePosts } from '../contexts/PostContext'
 import { userService } from '../services/users'
-import { CivicPost } from '../types'
-import { Edit, Bookmark, MessageCircle, TrendingUp, Calendar, MapPin, Eye, Heart, Share2, Filter, Grid, List, MoreHorizontal, Camera, ChevronRight, LogIn } from 'lucide-react'
+import { postsService } from '../services/posts'
+import { CivicPost, RepresentativeAccount } from '../types'
+import { Edit, Bookmark, MessageCircle, TrendingUp, Calendar, MapPin, Eye, Heart, Share2, Filter, Grid, List, MoreHorizontal, Camera, ChevronRight, LogIn, UserCheck } from 'lucide-react'
 import { Crown, Settings } from '../components/Icons'
 import Avatar from '../components/Avatar'
 import FeedCard from '../components/FeedCard'
 import AuthModal from '../components/AuthModal'
 import RepresentativeAccountTags from '../components/RepresentativeAccountTags'
+import FollowStats from '../components/FollowStats'
+import FollowModal from '../components/FollowModal'
 
 export default function Profile() {
   const { user, loading, refreshUser } = useUser()
@@ -17,11 +20,15 @@ export default function Profile() {
   const navigate = useNavigate()
   const [userPosts, setUserPosts] = useState<CivicPost[]>([])
   const [userPostsLoading, setUserPostsLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'activity'>('posts')
+  const [activeTab, setActiveTab] = useState<'assigned' | 'posts' | 'saved'>('posts')
+  const [assignedPosts, setAssignedPosts] = useState<CivicPost[]>([])
+  const [assignedPostsLoading, setAssignedPostsLoading] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [showCoverModal, setShowCoverModal] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showFollowModal, setShowFollowModal] = useState(false)
+  const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>('followers')
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [freshUserData, setFreshUserData] = useState<any>(null)
@@ -45,10 +52,14 @@ export default function Profile() {
     loadFreshUserData()
   }, [user])
 
-  // Debug effect to monitor freshUserData changes
+  // Debug effect to monitor freshUserData changes and set default tab
   useEffect(() => {
     if (freshUserData?.rep_accounts) {
       console.log('🎯 freshUserData.rep_accounts:', freshUserData.rep_accounts)
+      // If user has rep_accounts, default to 'assigned', otherwise 'posts'
+      if (freshUserData.rep_accounts.length > 0) {
+        setActiveTab('assigned')
+      }
     }
   }, [freshUserData])
 
@@ -73,14 +84,43 @@ export default function Profile() {
     }
   }
 
+  const loadAssignedPosts = async () => {
+    if (!user || !freshUserData?.rep_accounts || freshUserData.rep_accounts.length === 0) return
+    
+    try {
+      setAssignedPostsLoading(true)
+      
+      // Get all representative IDs from user's rep_accounts
+      const representativeIds = freshUserData.rep_accounts.map((account: RepresentativeAccount) => account.id)
+      
+      // Call the API to get posts assigned to these representatives
+      const response = await postsService.getAssignedPosts(representativeIds, {
+        sort_by: 'timestamp',
+        order: 'desc'
+      })
+      
+      setAssignedPosts(response.items)
+      
+    } catch (error) {
+      console.error('❌ Failed to load assigned posts:', error)
+      setAssignedPosts([])
+    } finally {
+      setAssignedPostsLoading(false)
+    }
+  }
+
   // Load user posts when user is available or when tab changes
   useEffect(() => {
     if (user && activeTab === 'posts') {
       // Clear existing posts and reload fresh data
       setUserPosts([])
       loadUserPosts()
+    } else if (user && activeTab === 'assigned') {
+      // Clear existing assigned posts and reload fresh data
+      setAssignedPosts([])
+      loadAssignedPosts()
     }
-  }, [user?.id, activeTab, posts]) // Added posts dependency since fallback uses it
+  }, [user?.id, activeTab, posts, freshUserData?.rep_accounts]) // Added posts dependency since fallback uses it
 
   // Show auth modal if user is not logged in
   if (!user && !loading) {
@@ -376,6 +416,19 @@ export default function Profile() {
             <p className="text-gray-700 text-sm">
               {user.bio || "Passionate about making our community better. Let's work together to solve local issues and create positive change! 🏘️✨"}
             </p>
+
+            {/* Follow Stats */}
+            <div className="mt-4">
+              <FollowStats
+                userId={user.id}
+                onClick={(type) => {
+                  setFollowModalTab(type)
+                  setShowFollowModal(true)
+                }}
+                className="justify-center"
+                size="md"
+              />
+            </div>
           </div>
 
           {/* Enhanced Stats Grid */}
@@ -436,6 +489,27 @@ export default function Profile() {
       <div className="mt-4 bg-white rounded-lg shadow-sm border border-gray-100">
         {/* Tab Navigation */}
         <div className="flex border-b border-gray-100">
+          {/* Conditionally show Assigned tab if user has rep_accounts */}
+          {freshUserData?.rep_accounts && freshUserData.rep_accounts.length > 0 && (
+            <button
+              onClick={() => {
+                setActiveTab('assigned')
+                if (activeTab !== 'assigned') {
+                  loadAssignedPosts()
+                }
+              }}
+              className={`flex-1 py-4 px-4 text-sm font-medium transition-colors relative ${
+                activeTab === 'assigned' 
+                  ? 'text-primary-600 border-b-2 border-primary-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-1">
+                <UserCheck className="w-4 h-4" />
+                <span>Assigned ({assignedPosts.length})</span>
+              </div>
+            </button>
+          )}
           <button
             onClick={() => {
               setActiveTab('posts')
@@ -449,7 +523,7 @@ export default function Profile() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            My Posts ({userPosts.length})
+            {freshUserData?.rep_accounts && freshUserData.rep_accounts.length > 0 ? 'Posts' : 'My Posts'} ({userPosts.length})
           </button>
           <button
             onClick={() => setActiveTab('saved')}
@@ -460,16 +534,6 @@ export default function Profile() {
             }`}
           >
             Saved ({savedPosts.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('activity')}
-            className={`flex-1 py-4 px-4 text-sm font-medium transition-colors relative ${
-              activeTab === 'activity' 
-                ? 'text-primary-600 border-b-2 border-primary-600' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Activity
           </button>
         </div>
 
@@ -566,6 +630,32 @@ export default function Profile() {
             </div>
           )}
 
+          {activeTab === 'assigned' && (
+            <div>
+              <h3 className="font-medium text-gray-900 mb-4">Assigned Issues</h3>
+              {assignedPostsLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Loading assigned issues...</p>
+                </div>
+              ) : assignedPosts.length > 0 ? (
+                <div className="space-y-3">
+                  {assignedPosts.map((post) => (
+                    <FeedCard key={post.id} post={post} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <UserCheck className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No assigned issues</h3>
+                  <p className="text-gray-500">Issues assigned to your representative accounts will appear here</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'saved' && (
             <div>
               <h3 className="font-medium text-gray-900 mb-4">Saved Posts</h3>
@@ -591,42 +681,6 @@ export default function Profile() {
                   <p className="text-gray-500">Posts you save will appear here</p>
                 </div>
               )}
-            </div>
-          )}
-
-          {activeTab === 'activity' && (
-            <div>
-              <h3 className="font-medium text-gray-900 mb-4">Recent Activity</h3>
-              <div className="space-y-4">
-                {/* Mock activity timeline */}
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">Your post received <span className="font-medium">15 new upvotes</span></p>
-                    <p className="text-xs text-gray-500">2 hours ago</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <MessageCircle className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">New comment on <span className="font-medium">"Pothole on Main Street"</span></p>
-                    <p className="text-xs text-gray-500">5 hours ago</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Bookmark className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">You saved a new post about <span className="font-medium">"Community Garden Project"</span></p>
-                    <p className="text-xs text-gray-500">1 day ago</p>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -772,6 +826,17 @@ export default function Profile() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Follow Modal */}
+      {user && (
+        <FollowModal
+          isOpen={showFollowModal}
+          onClose={() => setShowFollowModal(false)}
+          userId={user.id}
+          initialTab={followModalTab}
+          userName={user.display_name || user.username}
+        />
       )}
     </div>
   )
