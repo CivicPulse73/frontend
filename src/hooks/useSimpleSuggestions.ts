@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { searchService, SimpleSuggestionsResponse } from '../services/search'
+import { searchService } from '../services/search'
 
 interface UseSimpleSuggestionsOptions {
   debounceMs?: number
@@ -49,8 +49,10 @@ export const useSimpleSuggestions = (
       setError(null)
 
       try {
-        const response = await searchService.getSimpleSuggestions(searchQuery, limit)
-        setSuggestions(response.suggestions)
+        const response = await searchService.search(searchQuery, { limit })
+        // Extract titles from search results as suggestions
+        const suggestions = response.results.map(result => result.title)
+        setSuggestions(suggestions)
       } catch (err) {
         console.error('Failed to fetch suggestions:', err)
         setError('Failed to load suggestions')
