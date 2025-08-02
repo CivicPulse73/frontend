@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CivicPost } from '../types'
-import { MapPin, MessageCircle, ArrowUp, ArrowDown, Bookmark, Share, ChevronDown, ExternalLink, MoreHorizontal } from 'lucide-react'
+import { StatusBadge, TicketStatus } from './UI/TicketStatus'
+import { Heart, MessageCircle, Share, ArrowUp, ArrowDown, Bookmark, MapPin, Clock, User, AlertTriangle, CheckCircle2, Megaphone, Trophy, Play, Pause, Volume2, VolumeX, MoreHorizontal, ExternalLink } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { usePosts } from '../contexts/PostContext'
 import Avatar from './Avatar'
@@ -124,12 +125,9 @@ export default function FeedCardNew({ post }: FeedCardProps) {
                 {/* Use rep_accounts info first, fallback to role_name */}
                 {(() => {
                   // Debug logging
-                  console.log('FeedCardNew - Author data:', post.author);
-                  console.log('FeedCardNew - Rep accounts:', post.author?.rep_accounts);
                   
                   if (post.author?.rep_accounts && post.author.rep_accounts.length > 0) {
                     const repAccount = post.author.rep_accounts[0];
-                    console.log('FeedCardNew - Using rep account:', repAccount);
                     return (
                       <span className="flex items-center space-x-1">
                         {repAccount.title.abbreviation && (
@@ -175,12 +173,11 @@ export default function FeedCardNew({ post }: FeedCardProps) {
               {post.post_type}
             </Badge>
             {post.status && (
-              <Badge 
-                variant={getStatusColor(post.status)} 
+              <StatusBadge 
+                status={post.status as TicketStatus} 
                 size="sm"
-              >
-                {post.status}
-              </Badge>
+                variant="default"
+              />
             )}
           </div>
 

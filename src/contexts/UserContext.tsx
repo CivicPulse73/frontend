@@ -17,7 +17,6 @@ interface RegisterData {
   display_name?: string
   bio?: string
   avatar_url?: string
-  role?: string | null
 }
 
 const UserContext = createContext<UserContextType>({
@@ -168,8 +167,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         username: userData.username,
         display_name: userData.display_name,
         bio: userData.bio,
-        avatar_url: userData.avatar_url,
-        role: userData.role
+        avatar_url: userData.avatar_url
       }
       
       const authData = await authManager.register(registerData)
@@ -209,7 +207,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(storedUser)
           console.log('✅ UserContext: User refreshed from storage')
         } else {
-          // If no stored user but we have token, something is wrong
           await authManager.logout()
           setUser(null)
           console.log('⚠️ UserContext: No stored user, logged out')

@@ -132,14 +132,14 @@ export default function Post() {
         });
 
         // Get auth token
-        const token = localStorage.getItem('access_token');
+        const token = localStorage.getItem('civic_access_token');
         
         // Use XMLHttpRequest for file upload with progress
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           
           xhr.onload = () => {
-            if (xhr.status === 201) {
+            if (xhr.status === 200 || xhr.status === 201) {
               resolve();
             } else {
               const error = JSON.parse(xhr.responseText);
@@ -160,19 +160,47 @@ export default function Post() {
           xhr.send(formDataUpload);
         });
       } else {
-        // Regular JSON post without files
-        const postPayload = {
-          post_type: formData.type,
-          title: formData.title,
-          content: formData.description,
-          assignee: selectedAssignee,
-          location: locationData?.address || undefined,
-          latitude: locationData?.latitude || undefined,
-          longitude: locationData?.longitude || undefined
-        }
+        // Use FormData even without files since backend expects multipart/form-data
+        const formDataUpload = new FormData();
         
-        console.log('Submitting post:', postPayload)
-        await addPost(postPayload)
+        // Add text fields
+        formDataUpload.append('title', formData.title);
+        formDataUpload.append('content', formData.description);
+        formDataUpload.append('post_type', formData.type);
+        
+        if (selectedAssignee) formDataUpload.append('assignee', selectedAssignee);
+        if (locationData?.address) formDataUpload.append('location', locationData.address);
+        if (locationData?.latitude) formDataUpload.append('latitude', locationData.latitude.toString());
+        if (locationData?.longitude) formDataUpload.append('longitude', locationData.longitude.toString());
+
+        // Get auth token
+        const token = localStorage.getItem('civic_access_token');
+        
+        // Use XMLHttpRequest for consistency
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          
+          xhr.onload = () => {
+            if (xhr.status === 200 || xhr.status === 201) {
+              resolve();
+            } else {
+              const error = JSON.parse(xhr.responseText);
+              reject(new Error(error.detail || 'Failed to create post'));
+            }
+          };
+
+          xhr.onerror = () => {
+            reject(new Error('Network error occurred'));
+          };
+
+          xhr.open('POST', '/api/v1/posts');
+          
+          if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          }
+
+          xhr.send(formDataUpload);
+        });
       }
 
       // Reset form

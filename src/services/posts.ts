@@ -10,8 +10,8 @@ function transformPost(backendPost: any): CivicPost {
     is_downvoted: backendPost.user_vote === 'downvote',
     // Handle media_urls vs images backward compatibility
     images: backendPost.media_urls || backendPost.images,
-    // Handle status enum differences
-    status: backendPost.status === 'in_progress' ? 'in-progress' : backendPost.status
+    // Handle status enum differences - keep backend format
+    status: backendPost.status
   }
 }
 
@@ -29,9 +29,12 @@ export interface CreatePostRequest {
   title: string
   content: string  // Changed from 'description' to 'content'
   post_type: 'issue' | 'announcement' | 'news' | 'accomplishment' | 'discussion'  // Changed from 'type' to 'post_type'
+  assignee: string  // Required: UUID of representative
   area?: string  // Changed from 'area' to optional
   category?: string
   location?: string  // Added location field
+  latitude?: number  // Added latitude
+  longitude?: number  // Added longitude
   tags?: string[]  // Added tags
   media_urls?: string[]  // Added media_urls
 }
@@ -70,6 +73,33 @@ export const postsService = {
     }
   },
 
+  async getAssignedPosts(representativeIds: string[], filters: PostFilters = {}): Promise<PaginatedResponse<CivicPost>> {
+    const searchParams = new URLSearchParams()
+    
+    // Add assignee filters
+    representativeIds.forEach(id => {
+      searchParams.append('assignee', id)
+    })
+    
+    // Add other filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && key !== 'assignee') {
+        searchParams.append(key, value.toString())
+      }
+    })
+
+    const queryString = searchParams.toString()
+    const endpoint = `/posts/posts-only${queryString ? `?${queryString}` : ''}`
+    
+    const response = await apiClient.get<PaginatedResponse<any>>(endpoint)
+    
+    // Transform backend response to frontend format
+    return {
+      ...response,
+      items: response.items.map(transformPost)
+    }
+  },
+
   async getPost(postId: string): Promise<CivicPost> {
     const response = await apiClient.get<ApiResponse<{ post: any }>>(`/posts/${postId}`)
     if (response.success && response.data?.post) {
@@ -79,7 +109,41 @@ export const postsService = {
   },
 
   async createPost(postData: CreatePostRequest): Promise<CivicPost> {
-    const response = await apiClient.post<ApiResponse<{ post: any }>>('/posts', postData)
+    // Convert to FormData since backend expects multipart/form-data
+    const formData = new FormData()
+    
+    // Add required fields
+    formData.append('title', postData.title)
+    formData.append('content', postData.content)
+    formData.append('post_type', postData.post_type)
+    
+    // Add assignee (required by backend)
+    if (postData.assignee) {
+      formData.append('assignee', postData.assignee)
+    } else {
+      // If no assignee provided, we need to handle this
+      throw new Error('Assignee is required for creating posts')
+    }
+    
+    // Add optional fields
+    if (postData.location) {
+      formData.append('location', postData.location)
+    }
+    if (postData.latitude !== undefined) {
+      formData.append('latitude', postData.latitude.toString())
+    }
+    if (postData.longitude !== undefined) {
+      formData.append('longitude', postData.longitude.toString())
+    }
+    
+    // Handle media files if provided
+    if (postData.media_urls && postData.media_urls.length > 0) {
+      // Note: This is for URLs, but backend expects files
+      // You might need to handle file uploads differently
+      console.warn('Media URLs provided but backend expects file uploads')
+    }
+    
+    const response = await apiClient.postFormData<ApiResponse<{ post: any }>>('/posts', formData)
     if (response.success && response.data?.post) {
       return transformPost(response.data.post)
     }
@@ -137,5 +201,13 @@ export const postsService = {
       return response.data
     }
     throw new Error(response.error || 'Failed to save post')
+  },
+
+  async updatePostStatus(postId: string, status: 'open' | 'in_progress' | 'resolved' | 'closed'): Promise<CivicPost> {
+    const response = await apiClient.patch<ApiResponse<{ post: any }>>(`/posts/${postId}/status`, { status })
+    if (response.success && response.data?.post) {
+      return transformPost(response.data.post)
+    }
+    throw new Error(response.error || 'Failed to update post status')
   }
 }

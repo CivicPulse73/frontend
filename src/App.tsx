@@ -8,11 +8,11 @@ import Explore from './pages/Explore'
 import Profile from './pages/Profile'
 import UserProfile from './pages/UserProfile'
 import Settings from './pages/Settings'
+import StatusDemo from './pages/StatusDemo'
 import { PostProvider } from './contexts/PostContext'
 import { UserProvider } from './contexts/UserContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { ErrorBoundary, NetworkStatus } from './components/ErrorBoundary'
-import { roleService } from './services/roleService'
 import { authManager } from './services/authManager'
 import { useEffect, Suspense } from 'react'
 import DevUtils from './utils/devUtils'
@@ -57,10 +57,6 @@ function App() {
             await authManager.logout()
           }
         }
-        
-        // Preload roles
-        await roleService.fetchRoles()
-        console.log('Roles preloaded successfully')
       } catch (error) {
         console.warn('Failed to initialize app:', error)
       }
@@ -91,6 +87,7 @@ function App() {
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/profile/:userId" element={<UserProfile />} />
                       <Route path="/settings" element={<Settings />} />
+                      <Route path="/status-demo" element={<StatusDemo />} />
                     </Routes>
                   </Layout>
                 </AnimatePresence>

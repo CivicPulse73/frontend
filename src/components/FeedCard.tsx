@@ -1,13 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CivicPost } from '../types'
-import { MapPin, MessageCircle, ArrowUp, ArrowDown, Bookmark, Share, ChevronDown, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize, RotateCcw } from 'lucide-react'
+import { StatusBadge, TicketStatus } from './UI/TicketStatus'
+import { MapPin, MessageCircle, ArrowUp, ArrowDown, Bookmark, Share, ChevronDown, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, Info, Calendar, User, MapIcon } from 'lucide-react'
 import { usePosts } from '../contexts/PostContext'
+import { useUser } from '../contexts/UserContext'
 import Avatar from './Avatar'
 import CommentModal from './CommentModal'
+import FollowButton from './FollowButton'
 
 interface FeedCardProps {
   post: CivicPost
+  customStatusComponent?: React.ReactNode
+  customDetailsStatusComponent?: React.ReactNode
 }
 
 // Throttle function to prevent rapid API calls
@@ -30,13 +35,15 @@ const throttle = (func: Function, delay: number) => {
   }
 }
 
-export default function FeedCard({ post }: FeedCardProps) {
+export default function FeedCard({ post, customStatusComponent, customDetailsStatusComponent }: FeedCardProps) {
   const navigate = useNavigate()
   const { toggleUpvote, toggleDownvote, toggleSave } = usePosts()
+  const { user: currentUser } = useUser()
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [imageLoading, setImageLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
   
   // Throttled versions of the action functions
   const throttledUpvote = useRef(throttle(() => toggleUpvote(post.id), 1000))
@@ -339,7 +346,7 @@ export default function FeedCard({ post }: FeedCardProps) {
   }
 
   return (
-    <div className="feed-card fade-in hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+    <div className="feed-card fade-in hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 overflow-visible">
       {/* Header */}
       <div className="p-4 border-b border-gray-50">
         <div className="flex items-start justify-between">
@@ -371,12 +378,9 @@ export default function FeedCard({ post }: FeedCardProps) {
                     {/* Use rep_accounts info first, fallback to role_name/abbreviation */}
                     {(() => {
                       // Debug logging to see what data we have
-                      console.log('Author data:', post.author);
-                      console.log('Rep accounts:', post.author.rep_accounts);
                       
                       if (post.author.rep_accounts && post.author.rep_accounts.length > 0) {
                         const repAccount = post.author.rep_accounts[0];
-                        console.log('Using rep account:', repAccount);
                         return (
                           <>
                             {repAccount.title.abbreviation && (
@@ -408,6 +412,17 @@ export default function FeedCard({ post }: FeedCardProps) {
           </div>
           
           <div className="flex items-center space-x-2">
+            {/* Follow Button - only show for other users */}
+            {currentUser && currentUser.id !== post.author.id && (
+              <FollowButton
+                userId={post.author.id}
+                size="sm"
+                variant="outline"
+                showIcon={false}
+                className="text-xs"
+              />
+            )}
+            
             {/* Show News tag for news articles, hide other post type tags */}
             {(post.source === 'news' || post.post_type === 'news') ? (
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPostTypeColor('news')} flex items-center space-x-1`}>
@@ -420,11 +435,7 @@ export default function FeedCard({ post }: FeedCardProps) {
                 <span className="capitalize">{post.post_type}</span>
               </span>
             )}
-            {post.status && !(post.source === 'news' || post.post_type === 'news') && (
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(post.status)}`}>
-                {post.status.replace('-', ' ')}
-              </span>
-            )}
+            {/* Remove status badge from header - now only shown in details */}
           </div>
         </div>
       </div>
@@ -681,6 +692,121 @@ export default function FeedCard({ post }: FeedCardProps) {
             )}
           </p>
         </div>
+
+        {/* View Details Section - only for non-news posts */}
+        {!(post.source === 'news' || post.post_type === 'news') && (
+          <div className="mb-3 overflow-visible">
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors group hover:bg-gray-50 rounded-lg"
+            >
+              <div className="flex items-center space-x-2">
+                <Info className="w-4 h-4" />
+                <span>View Details</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showDetails ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {/* Details Panel */}
+            <div className={`transition-all duration-300 ${showDetails ? 'opacity-100 visible' : 'opacity-0 invisible h-0'}`}>
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-2 relative z-10">
+                {/* Assignee */}
+                {post.assignee && (
+                  <div className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
+                    <User className="w-4 h-4 text-gray-500" />
+                    <div className="flex-1">
+                      <span className="text-xs font-medium text-gray-700">Assignee:</span>
+                      <span className="text-xs text-gray-600 ml-2">{post.assignee}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status */}
+                {post.status && (
+                  <div className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
+                    <div className="w-4 h-4 rounded-full bg-gray-400"></div>
+                    <div className="flex-1">
+                      <span className="text-xs font-medium text-gray-700">Status:</span>
+                      <div className="inline-block ml-2">
+                        {customDetailsStatusComponent || customStatusComponent || (
+                          <StatusBadge 
+                            status={post.status as TicketStatus} 
+                            size="sm" 
+                            variant="default"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Time Information */}
+                {(post.updated_at || post.created_at) && (
+                  <div className="space-y-2">
+                    {post.updated_at && (
+                      <div className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
+                        <Calendar className="w-4 h-4 text-gray-500" />
+                        <div className="flex-1">
+                          <span className="text-xs font-medium text-gray-700">Updated:</span>
+                          <span className="text-xs text-gray-600 ml-2">
+                            {new Date(post.updated_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {post.created_at && (
+                      <div className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
+                        <Calendar className="w-4 h-4 text-gray-500" />
+                        <div className="flex-1">
+                          <span className="text-xs font-medium text-gray-700">Created:</span>
+                          <span className="text-xs text-gray-600 ml-2">
+                            {new Date(post.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Location Information */}
+                {((post.author.rep_accounts && post.author.rep_accounts.length > 0) || post.location) && (
+                  <div className="space-y-2">
+                    {post.author.rep_accounts && post.author.rep_accounts.length > 0 && (
+                      <div className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
+                        <MapIcon className="w-4 h-4 text-gray-500" />
+                        <div className="flex-1">
+                          <span className="text-xs font-medium text-gray-700">Jurisdiction:</span>
+                          <span className="text-xs text-gray-600 ml-2">
+                            {post.author.rep_accounts[0]?.jurisdiction?.name || 'Not specified'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {post.location && (
+                      <div className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
+                        <MapPin className="w-4 h-4 text-gray-500" />
+                        <div className="flex-1">
+                          <span className="text-xs font-medium text-gray-700">Location:</span>
+                          <span className="text-xs text-gray-600 ml-2">{post.location}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Actions */}

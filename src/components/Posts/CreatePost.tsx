@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
-import { roleService, Role } from '../../services/roleService';
-import { RoleTag } from './RoleTag';
+import { useState } from 'react';
 import { LocationSelector } from '../Maps/LocationSelector';
 import { AssigneeSelector } from './AssigneeSelector';
 import { MediaUploader } from './MediaUploader';
@@ -13,10 +11,6 @@ interface CreatePostProps {
 }
 
 export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) => {
-  const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
-  const [selectedRoles, setSelectedRoles] = useState<Role[]>([]);
-  const [roleSearchQuery, setRoleSearchQuery] = useState('');
-  
   // Form state
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -25,30 +19,11 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
   const [showLocationSelector, setShowLocationSelector] = useState(true); // Start with map open
   const [assignee, setAssignee] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<any[]>([]);
   
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const loadRoles = async () => {
-      await roleService.ensureRolesLoaded();
-      setAvailableRoles(roleService.getRoles());
-    };
-    loadRoles();
-  }, []);
-
-  const filteredRoles = availableRoles.filter(role => 
-    role.role_name.toLowerCase().includes(roleSearchQuery.toLowerCase()) ||
-    role.abbreviation.toLowerCase().includes(roleSearchQuery.toLowerCase()) ||
-    role.description.toLowerCase().includes(roleSearchQuery.toLowerCase())
-  );
-
-  const handleRoleSelect = (role: Role) => {
-    if (!selectedRoles.find(r => r.id === role.id)) {
-      setSelectedRoles([...selectedRoles, role].sort((a, b) => a.level_rank - b.level_rank));
-    }
-  };
 
   const handleRoleRemove = (roleId: string) => {
     setSelectedRoles(selectedRoles.filter(r => r.id !== roleId));
@@ -132,14 +107,14 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
         });
 
         // Get auth token
-        const token = localStorage.getItem('access_token');
+        const token = localStorage.getItem('civic_access_token');
         
         // Use XMLHttpRequest for file upload with progress
         const response = await new Promise<any>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           
           xhr.onload = () => {
-            if (xhr.status === 201) {
+            if (xhr.status === 200 || xhr.status === 201) {
               const response = JSON.parse(xhr.responseText);
               resolve(response);
             } else {
@@ -181,19 +156,21 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
           setErrors({ submit: errorMessage });
         }
       } else {
-        // Regular JSON post without files
-        const postData = {
-          title: title.trim(),
-          content: content.trim(),
-          post_type: postType,
-          assignee: assignee,
-          location: locationData?.address || undefined,
-          latitude: locationData?.latitude || undefined,
-          longitude: locationData?.longitude || undefined,
-          tags: selectedRoles.map(role => role.abbreviation),
-        };
+        // Use FormData even without files since backend expects multipart/form-data
+        const formData = new FormData();
+        
+        // Add text fields
+        formData.append('title', title.trim());
+        formData.append('content', content.trim());
+        formData.append('post_type', postType);
+        
+        if (assignee) formData.append('assignee', assignee);
+        if (locationData?.address) formData.append('location', locationData.address);
+        if (locationData?.latitude) formData.append('latitude', locationData.latitude.toString());
+        if (locationData?.longitude) formData.append('longitude', locationData.longitude.toString());
+        if (selectedRoles.length > 0) formData.append('tags', JSON.stringify(selectedRoles.map(role => role.abbreviation)));
 
-        const response = await apiClient.post<any>('/posts', postData);
+        const response = await apiClient.postFormData<any>('/posts', formData);
         
         if (response && typeof response === 'object' && 'success' in response && response.success) {
           // Reset form on success

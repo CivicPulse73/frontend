@@ -1,4 +1,5 @@
 import { apiClient, ApiResponse } from './api'
+import { BASE_URL } from '../config/api'
 import { User, CivicPost } from '../types'
 
 export interface UpdateUserRequest {
@@ -45,7 +46,13 @@ export const userService = {
       }
     }
     
-    const user = await apiClient.get<User>('/users/profile')
+    const response = await apiClient.get<ApiResponse<User>>('/users/profile')
+    
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Failed to get user profile')
+    }
+    
+    const user = response.data
     
     // Update cache and localStorage
     userCache = user
@@ -66,7 +73,6 @@ export const userService = {
         throw new Error(response.message || 'Failed to get user posts')
       }
       
-      console.log('📝 Retrieved user posts:', response.data.posts.length)
       return response.data
     } catch (error) {
       console.error('❌ Get user posts error:', error)
@@ -98,10 +104,10 @@ export const userService = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch(`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1'}/users/avatar`, {
+    const response = await fetch(`${BASE_URL}/users/avatar`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        Authorization: `Bearer ${localStorage.getItem('civic_access_token')}`,
       },
       body: formData,
     })
@@ -118,10 +124,10 @@ export const userService = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch(`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1'}/users/cover-photo`, {
+    const response = await fetch(`${BASE_URL}/users/cover-photo`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        Authorization: `Bearer ${localStorage.getItem('civic_access_token')}`,
       },
       body: formData,
     })

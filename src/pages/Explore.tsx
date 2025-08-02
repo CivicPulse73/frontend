@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { StatusBadge, StatusIndicator, TicketStatus } from '../components/UI/TicketStatus'
 import { Filter, Play, MessageCircle, ArrowUp, ArrowDown, Clock, AlertTriangle, CheckCircle2, Megaphone, Trophy, Search, X, MapPin, User, Heart, Bookmark, Share2, ChevronUp, ChevronDown } from 'lucide-react'
 import { usePosts } from '../contexts/PostContext'
 import { CivicPost } from '../types'
@@ -136,14 +137,12 @@ function ExploreCard({ post, onClick }: ExploreCardProps) {
         {/* Enhanced status badge for issues */}
         {post.post_type === 'issue' && post.status && (
           <div className="absolute top-3 right-3">
-            <span className={`inline-flex items-center px-2.5 py-1.5 rounded-full text-xs font-semibold border backdrop-blur-sm ${
-              post.status === 'resolved' ? 'bg-green-100 text-green-700 border-green-200' :
-              post.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-              'bg-red-100 text-red-700 border-red-200'
-            }`}>
-              {post.status === 'resolved' && <CheckCircle2 className="w-3 h-3 mr-1" />}
-              <span className="capitalize">{post.status.replace('-', ' ')}</span>
-            </span>
+            <StatusBadge 
+              status={post.status as TicketStatus} 
+              size="sm"
+              variant="default"
+              className="backdrop-blur-sm shadow-lg"
+            />
           </div>
         )}
 
@@ -260,7 +259,8 @@ export default function Explore() {
           post.title.toLowerCase().includes(query) ||
           post.content.toLowerCase().includes(query) ||
           post.location?.toLowerCase().includes(query) ||
-          post.author.display_name?.toLowerCase().includes(query)
+          post.author.display_name?.toLowerCase().includes(query) ||
+          post.author.username?.toLowerCase().includes(query)
         )
       }
       
@@ -316,7 +316,7 @@ export default function Explore() {
             </div>
             <input
               type="text"
-              placeholder="Search posts, areas, or topics..."
+              placeholder="Search posts, usernames, areas, or topics..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
@@ -333,10 +333,10 @@ export default function Explore() {
         </div>
 
         {/* Filter and Sort Bar */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+        <div className="mb-6 space-y-4 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
           {/* Filter buttons */}
-          <div className="flex-1">
-            <div className="flex flex-wrap gap-2">
+          <div className="flex-1 min-w-0 relative">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 -mb-2">
               {filterOptions.map((option) => {
                 const Icon = option.icon
                 const count = posts.filter(p => option.value === 'all' || p.post_type === option.value).length
@@ -344,15 +344,15 @@ export default function Explore() {
                   <button
                     key={option.value}
                     onClick={() => handleFilterChange(option.value)}
-                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
                       activeFilter === option.value
                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
                         : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-4 h-4 flex-shrink-0" />
                     <span>{option.label}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${
                       activeFilter === option.value
                         ? 'bg-white bg-opacity-20 text-white'
                         : 'bg-gray-100 text-gray-600'
@@ -363,6 +363,8 @@ export default function Explore() {
                 )
               })}
             </div>
+            {/* Gradient fade indicators for scrollable content */}
+            <div className="absolute top-0 right-0 w-8 h-full bg-gradient-to-l from-gray-50 to-transparent pointer-events-none sm:hidden"></div>
           </div>
 
           {/* Sort dropdown */}
@@ -370,7 +372,7 @@ export default function Explore() {
             <select
               value={sortBy}
               onChange={(e) => handleSortChange(e.target.value as SortOption)}
-              className="px-4 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full sm:w-auto px-4 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               {sortOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -902,14 +904,11 @@ function InfiniteScrollDetailViewer({ posts, initialPostIndex, isOpen, onClose }
                         <span className="ml-1 md:ml-2 capitalize">{post.post_type}</span>
                       </span>
                       {post.post_type === 'issue' && post.status && (
-                        <span className={`inline-flex items-center px-2 py-1 md:px-3 md:py-1.5 rounded-full text-xs md:text-sm font-semibold border ${
-                          post.status === 'resolved' ? 'bg-green-100 text-green-700 border-green-200' :
-                          post.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                          'bg-red-100 text-red-700 border-red-200'
-                        }`}>
-                          {post.status === 'resolved' && <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4 mr-1" />}
-                          <span className="capitalize">{post.status.replace('-', ' ')}</span>
-                        </span>
+                        <StatusBadge 
+                          status={post.status as TicketStatus} 
+                          size="sm"
+                          variant="default"
+                        />
                       )}
                     </div>
                   </div>
