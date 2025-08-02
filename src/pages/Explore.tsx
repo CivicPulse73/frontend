@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { StatusBadge, StatusIndicator, TicketStatus } from '../components/UI/TicketStatus'
 import { Filter, Play, MessageCircle, ArrowUp, ArrowDown, Clock, AlertTriangle, CheckCircle2, Megaphone, Trophy, Search, X, MapPin, User, Heart, Bookmark, Share2, ChevronUp, ChevronDown } from 'lucide-react'
 import { usePosts } from '../contexts/PostContext'
 import { CivicPost } from '../types'
@@ -136,14 +137,12 @@ function ExploreCard({ post, onClick }: ExploreCardProps) {
         {/* Enhanced status badge for issues */}
         {post.post_type === 'issue' && post.status && (
           <div className="absolute top-3 right-3">
-            <span className={`inline-flex items-center px-2.5 py-1.5 rounded-full text-xs font-semibold border backdrop-blur-sm ${
-              post.status === 'resolved' ? 'bg-green-100 text-green-700 border-green-200' :
-              post.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-              'bg-red-100 text-red-700 border-red-200'
-            }`}>
-              {post.status === 'resolved' && <CheckCircle2 className="w-3 h-3 mr-1" />}
-              <span className="capitalize">{post.status.replace('-', ' ')}</span>
-            </span>
+            <StatusBadge 
+              status={post.status as TicketStatus} 
+              size="sm"
+              variant="default"
+              className="backdrop-blur-sm shadow-lg"
+            />
           </div>
         )}
 
@@ -905,14 +904,11 @@ function InfiniteScrollDetailViewer({ posts, initialPostIndex, isOpen, onClose }
                         <span className="ml-1 md:ml-2 capitalize">{post.post_type}</span>
                       </span>
                       {post.post_type === 'issue' && post.status && (
-                        <span className={`inline-flex items-center px-2 py-1 md:px-3 md:py-1.5 rounded-full text-xs md:text-sm font-semibold border ${
-                          post.status === 'resolved' ? 'bg-green-100 text-green-700 border-green-200' :
-                          post.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                          'bg-red-100 text-red-700 border-red-200'
-                        }`}>
-                          {post.status === 'resolved' && <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4 mr-1" />}
-                          <span className="capitalize">{post.status.replace('-', ' ')}</span>
-                        </span>
+                        <StatusBadge 
+                          status={post.status as TicketStatus} 
+                          size="sm"
+                          variant="default"
+                        />
                       )}
                     </div>
                   </div>

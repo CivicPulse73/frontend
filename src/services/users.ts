@@ -1,4 +1,5 @@
 import { apiClient, ApiResponse } from './api'
+import { BASE_URL } from '../config/api'
 import { User, CivicPost } from '../types'
 
 export interface UpdateUserRequest {
@@ -103,10 +104,10 @@ export const userService = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch(`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1'}/users/avatar`, {
+    const response = await fetch(`${BASE_URL}/users/avatar`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        Authorization: `Bearer ${localStorage.getItem('civic_access_token')}`,
       },
       body: formData,
     })
@@ -123,10 +124,10 @@ export const userService = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch(`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1'}/users/cover-photo`, {
+    const response = await fetch(`${BASE_URL}/users/cover-photo`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        Authorization: `Bearer ${localStorage.getItem('civic_access_token')}`,
       },
       body: formData,
     })

@@ -9,10 +9,12 @@ import { Edit, Bookmark, MessageCircle, TrendingUp, Calendar, MapPin, Eye, Heart
 import { Crown, Settings } from '../components/Icons'
 import Avatar from '../components/Avatar'
 import FeedCard from '../components/FeedCard'
+import ProfileFeedCard from '../components/Posts/ProfileFeedCard'
 import AuthModal from '../components/AuthModal'
 import RepresentativeAccountTags from '../components/RepresentativeAccountTags'
 import FollowStats from '../components/FollowStats'
 import FollowModal from '../components/FollowModal'
+import { TicketStatus } from '../components/UI/TicketStatus'
 
 export default function Profile() {
   const { user, loading, refreshUser } = useUser()
@@ -107,6 +109,23 @@ export default function Profile() {
     } finally {
       setAssignedPostsLoading(false)
     }
+  }
+
+  // Handle status updates for posts
+  const handleStatusUpdate = (postId: string, newStatus: TicketStatus) => {
+    // Update userPosts if the post is in there
+    setUserPosts(prevPosts => 
+      prevPosts.map(post => 
+        post.id === postId ? { ...post, status: newStatus } : post
+      )
+    )
+    
+    // Update assignedPosts if the post is in there
+    setAssignedPosts(prevPosts => 
+      prevPosts.map(post => 
+        post.id === postId ? { ...post, status: newStatus } : post
+      )
+    )
   }
 
   // Load user posts when user is available or when tab changes
@@ -577,7 +596,12 @@ export default function Profile() {
                 <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3' : 'space-y-3'}>
                   {userPosts.map((post) => (
                     viewMode === 'list' ? (
-                      <FeedCard key={post.id} post={post} />
+                      <ProfileFeedCard 
+                        key={post.id} 
+                        post={post} 
+                        onStatusUpdate={handleStatusUpdate}
+                        showStatusUpdate={true}
+                      />
                     ) : (
                       <div key={post.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between mb-2">
@@ -641,7 +665,12 @@ export default function Profile() {
               ) : assignedPosts.length > 0 ? (
                 <div className="space-y-3">
                   {assignedPosts.map((post) => (
-                    <FeedCard key={post.id} post={post} />
+                    <ProfileFeedCard 
+                      key={post.id} 
+                      post={post} 
+                      onStatusUpdate={handleStatusUpdate}
+                      showStatusUpdate={true}
+                    />
                   ))}
                 </div>
               ) : (

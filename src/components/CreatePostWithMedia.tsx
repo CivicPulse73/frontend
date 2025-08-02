@@ -111,7 +111,7 @@ export const CreatePostWithMedia: React.FC<CreatePostWithMediaProps> = ({ onSucc
       });
 
       // Get auth token (adjust based on your auth implementation)
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('civic_access_token');
       const headers: Record<string, string> = {};
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
