@@ -104,6 +104,7 @@ export interface CivicPost {
   post_type: 'issue' | 'announcement' | 'news' | 'accomplishment' | 'discussion'  // Added 'discussion' type
   title: string
   content: string  // Changed from 'description' to 'content'
+  assignee?: string  // UUID of representative assigned to handle this post
   image?: string
   video?: string
   media_urls?: string[]  // Changed from 'images' to 'media_urls' to match backend

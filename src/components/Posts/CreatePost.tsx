@@ -123,14 +123,14 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
         });
 
         // Get auth token
-        const token = localStorage.getItem('access_token');
-
+        const token = localStorage.getItem('civic_access_token');
+        
         // Use XMLHttpRequest for file upload with progress
         const response = await new Promise<any>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
 
           xhr.onload = () => {
-            if (xhr.status === 201) {
+            if (xhr.status === 200 || xhr.status === 201) {
               const response = JSON.parse(xhr.responseText);
               resolve(response);
             } else {
@@ -172,20 +172,22 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
           setErrors({ submit: errorMessage });
         }
       } else {
-        // Regular JSON post without files
-        const postData = {
-          title: title.trim(),
-          content: content.trim(),
-          post_type: postType,
-          assignee: assignee,
-          location: locationData?.address || undefined,
-          latitude: locationData?.latitude || undefined,
-          longitude: locationData?.longitude || undefined,
-          tags: selectedRoles.map(role => role.abbreviation),
-        };
+        // Use FormData even without files since backend expects multipart/form-data
+        const formData = new FormData();
+        
+        // Add text fields
+        formData.append('title', title.trim());
+        formData.append('content', content.trim());
+        formData.append('post_type', postType);
+        
+        if (assignee) formData.append('assignee', assignee);
+        if (locationData?.address) formData.append('location', locationData.address);
+        if (locationData?.latitude) formData.append('latitude', locationData.latitude.toString());
+        if (locationData?.longitude) formData.append('longitude', locationData.longitude.toString());
+        if (selectedRoles.length > 0) formData.append('tags', JSON.stringify(selectedRoles.map(role => role.abbreviation)));
 
-        const response = await apiClient.post<any>('/posts', postData);
-
+        const response = await apiClient.postFormData<any>('/posts', formData);
+        
         if (response && typeof response === 'object' && 'success' in response && response.success) {
           // Reset form on success
           setTitle('');

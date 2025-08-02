@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CivicPost } from '../types'
-import { MapPin, MessageCircle, ArrowUp, ArrowDown, Bookmark, Share, ChevronDown, ExternalLink, MoreHorizontal } from 'lucide-react'
+import { StatusBadge, TicketStatus } from './UI/TicketStatus'
+import { Heart, MessageCircle, Share, ArrowUp, ArrowDown, Bookmark, MapPin, Clock, User, AlertTriangle, CheckCircle2, Megaphone, Trophy, Play, Pause, Volume2, VolumeX, MoreHorizontal, ExternalLink } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { usePosts } from '../contexts/PostContext'
 import Avatar from './Avatar'
@@ -172,12 +173,11 @@ export default function FeedCardNew({ post }: FeedCardProps) {
               {post.post_type}
             </Badge>
             {post.status && (
-              <Badge 
-                variant={getStatusColor(post.status)} 
+              <StatusBadge 
+                status={post.status as TicketStatus} 
                 size="sm"
-              >
-                {post.status}
-              </Badge>
+                variant="default"
+              />
             )}
           </div>
 

@@ -1,5 +1,7 @@
 // API configuration and base client
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1'
+import { BASE_URL } from '../config/api'
+
+const API_BASE_URL = BASE_URL
 
 export interface ApiResponse<T = any> {
   success: boolean
@@ -190,7 +192,7 @@ class ApiClient {
   }
 
   private async refreshTokenIfAvailable(): Promise<string | null> {
-    const refreshToken = localStorage.getItem('refresh_token')
+    const refreshToken = localStorage.getItem('civic_refresh_token')
     if (!refreshToken) return null
 
     try {
@@ -205,7 +207,7 @@ class ApiClient {
         const data = await response.json()
         console.log('Token refresh successful')
         this.setToken(data.access_token)
-        localStorage.setItem('refresh_token', data.refresh_token)
+        localStorage.setItem('civic_refresh_token', data.refresh_token)
         return data.access_token
       } else {
         console.log('Token refresh failed with status:', response.status)
@@ -217,7 +219,7 @@ class ApiClient {
     // If refresh fails, clear tokens
     console.log('Clearing tokens due to refresh failure')
     this.setToken(null)
-    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('civic_refresh_token')
     
     // Dispatch a custom event to notify the app about logout
     window.dispatchEvent(new CustomEvent('token-expired'))
@@ -236,9 +238,50 @@ class ApiClient {
     })
   }
 
+  async postFormData<T>(endpoint: string, formData: FormData): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`
+    
+    const config: RequestInit = {
+      method: 'POST',
+      headers: {
+        // Don't set Content-Type for FormData - let browser set it with boundary
+        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+      },
+      body: formData,
+    }
+
+    // Add request timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+    config.signal = controller.signal
+
+    try {
+      const response = await fetch(url, config)
+      clearTimeout(timeoutId)
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.message || errorData.detail || errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        throw new Error(errorMessage)
+      }
+
+      return await response.json()
+    } catch (error) {
+      clearTimeout(timeoutId)
+      throw error
+    }
+  }
+
   async put<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  async patch<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
     })
   }

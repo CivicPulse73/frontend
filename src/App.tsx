@@ -11,6 +11,7 @@ import Settings from './pages/Settings'
 import SearchPage from './pages/SearchPage'
 import RepresentativePage from './pages/RepresentativePage'
 import WebSocketTestPage from './pages/WebSocketTestPage'
+import StatusDemo from './pages/StatusDemo'
 import { PostProvider } from './contexts/PostContext'
 import { UserProvider } from './contexts/UserContext'
 import { NotificationProvider } from './contexts/NotificationContext'
@@ -93,6 +94,7 @@ function App() {
                       <Route path="/representative/:representativeId" element={<RepresentativePage />} />
                       <Route path="/settings" element={<Settings />} />
                       <Route path="/websocket-test" element={<WebSocketTestPage />} />
+                      <Route path="/status-demo" element={<StatusDemo />} />
                     </Routes>
                   </Layout>
                 </AnimatePresence>
