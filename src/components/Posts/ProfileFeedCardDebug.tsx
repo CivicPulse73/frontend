@@ -94,7 +94,7 @@ export default function ProfileFeedCard({
       )}
       
       {/* Debug overlay */}
-      {process.env.NODE_ENV === 'development' && (
+      {(import.meta as any).env?.DEV && (
         <div className="absolute bottom-2 left-2 text-xs bg-black text-white p-1 rounded z-20">
           Can Update: {canUpdate ? 'Yes' : 'No'} | Author: {post.author.id === user?.id ? 'Me' : 'Other'} | Assignee: {post.assignee || 'None'}
         </div>

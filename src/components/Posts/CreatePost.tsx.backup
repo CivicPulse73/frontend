@@ -5,13 +5,6 @@ import { MediaUploader } from './MediaUploader';
 import { LocationData } from '../../types';
 import { apiClient } from '../../services/api';
 
-// Simple RoleTag component for this file
-const RoleTag = ({ role, showTooltip = false }: { role: any; showTooltip?: boolean }) => (
-  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-    {role.abbreviation || role.name}
-  </span>
-);
-
 interface CreatePostProps {
   onClose: () => void;
   onSuccess: () => void;
@@ -26,23 +19,14 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
   const [showLocationSelector, setShowLocationSelector] = useState(true); // Start with map open
   const [assignee, setAssignee] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [selectedRoles, setSelectedRoles] = useState<any[]>([]);
-  const [roleSearchQuery, setRoleSearchQuery] = useState('');
-  const [filteredRoles, setFilteredRoles] = useState<any[]>([]);
-
+  
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const handleRoleRemove = (roleId: string) => {
-    setSelectedRoles(selectedRoles.filter((r: any) => r.id !== roleId));
   };
 
-  const handleRoleSelect = (role: any) => {
-    if (!selectedRoles.find((r: any) => r.id === role.id)) {
-      setSelectedRoles([...selectedRoles, role]);
-    }
-    setRoleSearchQuery('');
+  const handleRoleRemove = (roleId: string) => {
+    setSelectedRoles(selectedRoles.filter(r => r.id !== roleId));
   };
 
   const handleLocationSelect = (location: LocationData) => {
@@ -93,7 +77,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!validateForm()) {
       return;
     }
@@ -105,12 +89,12 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
       if (selectedFiles.length > 0) {
         // Use FormData for multipart upload
         const formData = new FormData();
-
+        
         // Add text fields
         formData.append('title', title.trim());
         formData.append('content', content.trim());
         formData.append('post_type', postType);
-
+        
         if (assignee) formData.append('assignee', assignee);
         if (locationData?.address) formData.append('location', locationData.address);
         if (locationData?.latitude) formData.append('latitude', locationData.latitude.toString());
@@ -123,14 +107,14 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
         });
 
         // Get auth token
-        const token = localStorage.getItem('civic_access_token');
+        const token = localStorage.getItem('access_token');
         
         // Use XMLHttpRequest for file upload with progress
         const response = await new Promise<any>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
-
+          
           xhr.onload = () => {
-            if (xhr.status === 200 || xhr.status === 201) {
+            if (xhr.status === 201) {
               const response = JSON.parse(xhr.responseText);
               resolve(response);
             } else {
@@ -144,7 +128,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
           };
 
           xhr.open('POST', '/api/v1/posts');
-
+          
           if (token) {
             xhr.setRequestHeader('Authorization', `Bearer ${token}`);
           }
@@ -162,31 +146,29 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
           setSelectedRoles([]);
           setSelectedFiles([]);
           setErrors({});
-
+          
           onSuccess();
           onClose();
         } else {
-          const errorMessage = (response && typeof response === 'object' && 'error' in response)
-            ? (response as any).error
+          const errorMessage = (response && typeof response === 'object' && 'error' in response) 
+            ? (response as any).error 
             : 'Failed to create post';
           setErrors({ submit: errorMessage });
         }
       } else {
-        // Use FormData even without files since backend expects multipart/form-data
-        const formData = new FormData();
-        
-        // Add text fields
-        formData.append('title', title.trim());
-        formData.append('content', content.trim());
-        formData.append('post_type', postType);
-        
-        if (assignee) formData.append('assignee', assignee);
-        if (locationData?.address) formData.append('location', locationData.address);
-        if (locationData?.latitude) formData.append('latitude', locationData.latitude.toString());
-        if (locationData?.longitude) formData.append('longitude', locationData.longitude.toString());
-        if (selectedRoles.length > 0) formData.append('tags', JSON.stringify(selectedRoles.map(role => role.abbreviation)));
+        // Regular JSON post without files
+        const postData = {
+          title: title.trim(),
+          content: content.trim(),
+          post_type: postType,
+          assignee: assignee,
+          location: locationData?.address || undefined,
+          latitude: locationData?.latitude || undefined,
+          longitude: locationData?.longitude || undefined,
+          tags: selectedRoles.map(role => role.abbreviation),
+        };
 
-        const response = await apiClient.postFormData<any>('/posts', formData);
+        const response = await apiClient.post<any>('/posts', postData);
         
         if (response && typeof response === 'object' && 'success' in response && response.success) {
           // Reset form on success
@@ -198,12 +180,12 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
           setSelectedRoles([]);
           setSelectedFiles([]);
           setErrors({});
-
+          
           onSuccess();
           onClose();
         } else {
-          const errorMessage = (response && typeof response === 'object' && 'error' in response)
-            ? (response as any).error
+          const errorMessage = (response && typeof response === 'object' && 'error' in response) 
+            ? (response as any).error 
             : 'Failed to create post';
           setErrors({ submit: errorMessage });
         }
@@ -340,7 +322,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
                   {showLocationSelector ? 'Hide Map' : 'Select on Map'}
                 </button>
               </div>
-
+              
               {!locationData && (
                 <div className="mb-3 p-4 bg-blue-50 border border-blue-200 rounded-md">
                   <div className="flex items-start gap-2">
@@ -356,7 +338,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
                   </div>
                 </div>
               )}
-
+              
               {locationData && (
                 <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-md">
                   <div className="flex items-start justify-between">
@@ -417,7 +399,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Tag Roles (Optional)
               </label>
-
+              
               {/* Selected Roles */}
               {selectedRoles.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -435,7 +417,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
                   ))}
                 </div>
               )}
-
+              
               {/* Role Search */}
               <input
                 type="text"
@@ -444,7 +426,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
                 onChange={(e) => setRoleSearchQuery(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-
+              
               {/* Available Roles */}
               {roleSearchQuery && (
                 <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md">
@@ -504,5 +486,3 @@ export const CreatePost: React.FC<CreatePostProps> = ({ onClose, onSuccess }) =>
     </div>
   );
 };
-
-export default CreatePost;

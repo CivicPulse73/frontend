@@ -1,8 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowLeft, Settings, Edit, MessageCircle, TrendingUp } from 'lucide-react'
 import { usePosts } from '../contexts/PostContext'
 import { useUser } from '../contexts/UserContext'
+import { userService } from '../services/users'
+import { User } from '../types'
 import Avatar from '../components/Avatar'
 import RepresentativeAccountTags from '../components/RepresentativeAccountTags'
 import FollowButton from '../components/FollowButton'
@@ -14,14 +16,60 @@ export default function UserProfile() {
   const navigate = useNavigate()
   const { posts } = usePosts()
   const { user: currentUser } = useUser()
+  const [profileUser, setProfileUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showFollowModal, setShowFollowModal] = useState(false)
   const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>('followers')
   const [followStats, setFollowStats] = useState({ followers_count: 0, following_count: 0 })
 
-  // Find the user from posts (in a real app, this would be from a user API)
-  const profileUser = posts.find(post => post.author.id === userId)?.author
+  // Load user profile by ID
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (!userId) {
+        setError('User ID is required')
+        setLoading(false)
+        return
+      }
 
-  if (!profileUser) {
+      try {
+        setLoading(true)
+        setError(null)
+        const user = await userService.getUserById(userId)
+        setProfileUser(user)
+        
+        // Set initial follow stats if available
+        if (user.followers_count !== undefined) {
+          setFollowStats({
+            followers_count: user.followers_count,
+            following_count: user.following_count || 0
+          })
+        }
+      } catch (err) {
+        console.error('Failed to load user profile:', err)
+        setError('User not found')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadUserProfile()
+  }, [userId])
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="max-w-lg mx-auto p-4">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error || !profileUser) {
     return (
       <div className="max-w-lg mx-auto p-4">
         <div className="text-center py-12">
@@ -113,9 +161,6 @@ export default function UserProfile() {
                 </div>
               ) : profileUser.role_name ? (
                 <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium flex items-center space-x-1">
-                  {profileUser.abbreviation && (
-                    <span className="font-bold">{profileUser.abbreviation}</span>
-                  )}
                   <span>{profileUser.role_name}</span>
                 </span>
               ) : (

@@ -57,7 +57,7 @@ export default function CommentModal({ post, isOpen, onClose }: CommentModalProp
     setCommentText('')
 
     try {
-      await addComment(post.id, text, user)
+      await addComment(post.id, text, user as any)
     } catch (error) {
       setCommentText(text) // Restore text on error
       console.error('Failed to add comment:', error)
