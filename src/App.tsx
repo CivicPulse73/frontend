@@ -8,6 +8,9 @@ import Explore from './pages/Explore'
 import Profile from './pages/Profile'
 import UserProfile from './pages/UserProfile'
 import Settings from './pages/Settings'
+import SearchPage from './pages/SearchPage'
+import RepresentativePage from './pages/RepresentativePage'
+import WebSocketTestPage from './pages/WebSocketTestPage'
 import { PostProvider } from './contexts/PostContext'
 import { UserProvider } from './contexts/UserContext'
 import { NotificationProvider } from './contexts/NotificationContext'
@@ -81,11 +84,15 @@ function App() {
                     <Routes>
                       <Route path="/" element={<Home />} />
                       <Route path="/post" element={<Post />} />
+                      <Route path="/post/:postId" element={<Post />} />
                       <Route path="/activity" element={<Activity />} />
                       <Route path="/explore" element={<Explore />} />
+                      <Route path="/search" element={<SearchPage />} />
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/profile/:userId" element={<UserProfile />} />
+                      <Route path="/representative/:representativeId" element={<RepresentativePage />} />
                       <Route path="/settings" element={<Settings />} />
+                      <Route path="/websocket-test" element={<WebSocketTestPage />} />
                     </Routes>
                   </Layout>
                 </AnimatePresence>

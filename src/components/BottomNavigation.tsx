@@ -1,10 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Plus, Bell, Search, User } from 'lucide-react'
+import { Home, Plus, Bell, Search, User, Compass } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const navigationItems = [
   { id: 'home', label: 'Home', icon: Home, path: '/' },
-  { id: 'explore', label: 'Explore', icon: Search, path: '/explore' },
+  { id: 'search', label: 'Search', icon: Search, path: '/search' },
   { id: 'post', label: 'Post', icon: Plus, path: '/post' },
   { id: 'activity', label: 'Activity', icon: Bell, path: '/activity' },
   { id: 'profile', label: 'Profile', icon: User, path: '/profile' },

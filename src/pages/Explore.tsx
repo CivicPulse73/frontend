@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Filter, Play, MessageCircle, ArrowUp, ArrowDown, Clock, AlertTriangle, CheckCircle2, Megaphone, Trophy, Search, X, MapPin, User, Heart, Bookmark, Share2, ChevronUp, ChevronDown } from 'lucide-react'
 import { usePosts } from '../contexts/PostContext'
 import { CivicPost } from '../types'
@@ -193,10 +194,10 @@ function ExploreCard({ post, onClick }: ExploreCardProps) {
 
 export default function Explore() {
   const { posts, loadPosts } = usePosts()
+  const navigate = useNavigate()
   const [activeFilter, setActiveFilter] = useState<ExploreFilter>('all')
   const [selectedPostIndex, setSelectedPostIndex] = useState<number>(-1)
   const [isDetailViewerOpen, setIsDetailViewerOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('recent')
 
   // Load posts when component mounts if no posts are available
@@ -253,18 +254,6 @@ export default function Explore() {
       // Filter by type
       if (activeFilter !== 'all' && post.post_type !== activeFilter) return false
       
-      // Filter by search query
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase()
-        return (
-          post.title.toLowerCase().includes(query) ||
-          post.content.toLowerCase().includes(query) ||
-          post.location?.toLowerCase().includes(query) ||
-          post.author.display_name?.toLowerCase().includes(query) ||
-          post.author.username?.toLowerCase().includes(query)
-        )
-      }
-      
       return true
     })
 
@@ -283,7 +272,7 @@ export default function Explore() {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       }
     })
-  }, [posts, activeFilter, searchQuery, sortBy])
+  }, [posts, activeFilter, sortBy])
 
   const handleCardClick = (post: CivicPost) => {
     const postIndex = filteredAndSortedPosts.findIndex(p => p.id === post.id)
@@ -294,10 +283,6 @@ export default function Explore() {
   const handleDetailViewerClose = () => {
     setIsDetailViewerOpen(false)
     setSelectedPostIndex(-1)
-  }
-
-  const clearSearch = () => {
-    setSearchQuery('')
   }
 
   return (
@@ -318,18 +303,10 @@ export default function Explore() {
             <input
               type="text"
               placeholder="Search posts, usernames, areas, or topics..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              onClick={() => navigate('/search')}
+              readOnly
+              className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm cursor-pointer"
             />
-            {searchQuery && (
-              <button
-                onClick={clearSearch}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              >
-                <X className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-              </button>
-            )}
           </div>
         </div>
 
@@ -387,17 +364,8 @@ export default function Explore() {
         {/* Results count */}
         <div className="mb-4">
           <p className="text-sm text-gray-600">
-            {searchQuery ? (
-              <>
-                Found <span className="font-semibold">{filteredAndSortedPosts.length}</span> results
-                {searchQuery && <> for "<span className="font-medium">{searchQuery}</span>"</>}
-              </>
-            ) : (
-              <>
-                Showing <span className="font-semibold">{filteredAndSortedPosts.length}</span> posts
-                {activeFilter !== 'all' && <> in <span className="font-medium capitalize">{activeFilter}</span></>}
-              </>
-            )}
+            Showing <span className="font-semibold">{filteredAndSortedPosts.length}</span> posts
+            {activeFilter !== 'all' && <> in <span className="font-medium capitalize">{activeFilter}</span></>}
           </p>
         </div>
 
@@ -420,35 +388,17 @@ export default function Explore() {
         {filteredAndSortedPosts.length === 0 && (
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              {searchQuery ? (
-                <Search className="w-10 h-10 text-gray-400" />
-              ) : (
-                <Filter className="w-10 h-10 text-gray-400" />
-              )}
+              <Filter className="w-10 h-10 text-gray-400" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-3">
-              {searchQuery ? 'No results found' : 'No content found'}
+              No content found
             </h3>
             <p className="text-gray-500 max-w-md mx-auto mb-6">
-              {searchQuery ? (
-                <>
-                  We couldn't find any posts matching "<span className="font-medium">{searchQuery}</span>".
-                  Try adjusting your search terms or filters.
-                </>
-              ) : (
-                activeFilter === 'all' 
-                  ? "No posts are available at the moment. Check back later for updates."
-                  : `No ${activeFilter} posts found. Try selecting a different category.`
-              )}
+              {activeFilter === 'all' 
+                ? "No posts are available at the moment. Check back later for updates."
+                : `No ${activeFilter} posts found. Try selecting a different category.`
+              }
             </p>
-            {searchQuery && (
-              <button
-                onClick={clearSearch}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-              >
-                Clear search
-              </button>
-            )}
           </div>
         )}
 
@@ -488,18 +438,25 @@ function InfiniteScrollDetailViewer({ posts, initialPostIndex, isOpen, onClose }
         return () => clearTimeout(timer)
       }
     }
+    
+    // Return an empty cleanup function for all other cases
+    return () => {}
   }, [isOpen])
 
   useEffect(() => {
     if (isOpen) {
       // Scroll to the initial post when modal opens
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         postRefs.current[initialPostIndex]?.scrollIntoView({ 
           behavior: 'smooth',
           block: 'center'
         })
       }, 100)
+      return () => clearTimeout(timer)
     }
+    
+    // Return an empty cleanup function if not open
+    return () => {}
   }, [isOpen, initialPostIndex])
 
   useEffect(() => {
@@ -537,6 +494,9 @@ function InfiniteScrollDetailViewer({ posts, initialPostIndex, isOpen, onClose }
       container.addEventListener('scroll', handleScroll, { passive: true })
       return () => container.removeEventListener('scroll', handleScroll)
     }
+    
+    // Return an empty cleanup function if no event listener was added
+    return () => {}
   }, [currentIndex])
 
   const navigateToPost = (direction: 'up' | 'down') => {
@@ -584,6 +544,9 @@ function InfiniteScrollDetailViewer({ posts, initialPostIndex, isOpen, onClose }
         document.body.style.overflow = 'unset'
       }
     }
+    
+    // Return an empty cleanup function if not open
+    return () => {}
   }, [isOpen, currentIndex])
 
   // Enhanced touch handling for mobile swipe navigation

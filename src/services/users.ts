@@ -91,6 +91,16 @@ export const userService = {
     return user
   },
 
+  async getUserById(userId: string): Promise<User> {
+    const response = await apiClient.get<ApiResponse<User>>(`/users/${userId}`)
+    
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Failed to get user profile')
+    }
+    
+    return response.data
+  },
+
   // Clear cache when user logs out
   clearCache(): void {
     userCache = null
