@@ -105,10 +105,29 @@ export interface CivicPost {
   title: string
   content: string  // Changed from 'description' to 'content'
   assignee?: string  // UUID of representative assigned to handle this post
+  assignee_info?: {  // Assignee details from representative API
+    id: string
+    title_info: {
+      title_name: string
+      abbreviation?: string
+      level_rank?: number
+      description?: string
+    }
+    jurisdiction_info: {
+      name: string
+      level_name: string
+    }
+    user_info?: {
+      username: string
+      display_name?: string
+      first_name?: string
+      last_name?: string
+      avatar_url?: string
+    } | null
+  }
   image?: string
   video?: string
   media_urls?: string[]  // Changed from 'images' to 'media_urls' to match backend
-  location?: string  // Keep both for backward compatibility
   latitude?: number  // Geographic coordinates
   longitude?: number  // Geographic coordinates
   created_at: string  // Changed from 'timestamp' to 'created_at'

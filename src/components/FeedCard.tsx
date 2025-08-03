@@ -2,12 +2,13 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CivicPost } from '../types'
 import { StatusBadge, TicketStatus } from './UI/TicketStatus'
-import { MapPin, MessageCircle, ArrowUp, ArrowDown, Bookmark, Share, ChevronDown, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, Info, Calendar, User, MapIcon } from 'lucide-react'
+import { MapPin, MessageCircle, ArrowUp, ArrowDown, Bookmark, Share, ChevronDown, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, Info, Calendar, User, MapIcon, Phone, Mail, Building, CheckCircle, Loader2, UserPlus } from 'lucide-react'
 import { usePosts } from '../contexts/PostContext'
 import { useUser } from '../contexts/UserContext'
 import Avatar from './Avatar'
 import CommentModal from './CommentModal'
 import FollowButton from './FollowButton'
+import AssigneeSelection from './AssigneeSelection'
 
 interface FeedCardProps {
   post: CivicPost
@@ -37,13 +38,20 @@ const throttle = (func: Function, delay: number) => {
 
 export default function FeedCard({ post, customStatusComponent, customDetailsStatusComponent }: FeedCardProps) {
   const navigate = useNavigate()
-  const { toggleUpvote, toggleDownvote, toggleSave } = usePosts()
+  const { toggleUpvote, toggleDownvote, toggleSave, updateAssignee } = usePosts()
   const { user: currentUser } = useUser()
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [imageLoading, setImageLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
+  const [showAssigneeModal, setShowAssigneeModal] = useState(false)
+  const [assigneeLoading, setAssigneeLoading] = useState(false)
+  
+  // Remove assignee-related state since we now get it from post.assignee_info
+  // const [assigneeDetails, setAssigneeDetails] = useState<AssigneeDetails | null>(null)
+  // const [loadingAssignee, setLoadingAssignee] = useState(false)
+  // const [assigneeError, setAssigneeError] = useState<string | null>(null)
   
   // Throttled versions of the action functions
   const throttledUpvote = useRef(throttle(() => toggleUpvote(post.id), 1000))
@@ -322,6 +330,34 @@ export default function FeedCard({ post, customStatusComponent, customDetailsSta
       case 'news': return '📰'
       case 'accomplishment': return '🎉'
       default: return '📝'
+    }
+  }
+
+  // Function removed - now using post.assignee_info directly
+  
+  // Handle show details toggle
+  const handleShowDetailsToggle = () => {
+    const newShowDetails = !showDetails
+    setShowDetails(newShowDetails)
+  }
+
+  // Handle assignee operations
+  const handleAssignClick = () => {
+    setShowAssigneeModal(true)
+  }
+
+  const handleAssigneeUpdate = async (assigneeId: string | null) => {
+    if (!currentUser) return
+    
+    setAssigneeLoading(true)
+    try {
+      await updateAssignee(post.id, assigneeId)
+      setShowAssigneeModal(false)
+    } catch (error) {
+      console.error('Failed to update assignee:', error)
+      // TODO: Show error message to user
+    } finally {
+      setAssigneeLoading(false)
     }
   }
 
@@ -697,12 +733,12 @@ export default function FeedCard({ post, customStatusComponent, customDetailsSta
         {!(post.source === 'news' || post.post_type === 'news') && (
           <div className="mb-3 overflow-visible">
             <button
-              onClick={() => setShowDetails(!showDetails)}
+              onClick={handleShowDetailsToggle}
               className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors group hover:bg-gray-50 rounded-lg"
             >
               <div className="flex items-center space-x-2">
                 <Info className="w-4 h-4" />
-                <span>View Details</span>
+                <span>More Details</span>
               </div>
               <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showDetails ? 'rotate-180' : ''}`} />
             </button>
@@ -710,16 +746,125 @@ export default function FeedCard({ post, customStatusComponent, customDetailsSta
             {/* Details Panel */}
             <div className={`transition-all duration-300 ${showDetails ? 'opacity-100 visible' : 'opacity-0 invisible h-0'}`}>
               <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-2 relative z-10">
-                {/* Assignee */}
-                {post.assignee && (
-                  <div className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
-                    <User className="w-4 h-4 text-gray-500" />
-                    <div className="flex-1">
-                      <span className="text-xs font-medium text-gray-700">Assignee:</span>
-                      <span className="text-xs text-gray-600 ml-2">{post.assignee}</span>
+                {/* Assignee - Always show */}
+                <div className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  {post.assignee && post.assignee_info ? (
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <Building className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-xs font-medium text-gray-700">Assigned Representative</span>
+                              <CheckCircle className="w-3 h-3 text-green-500" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-semibold text-gray-900">
+                                  {post.assignee_info.title_info.abbreviation && (
+                                    <span className="text-blue-600">{post.assignee_info.title_info.abbreviation}</span>
+                                  )}
+                                  {post.assignee_info.title_info.abbreviation && ' '}
+                                  {post.assignee_info.title_info.title_name}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-600">
+                                {post.assignee_info.jurisdiction_info.level_name}: {post.assignee_info.jurisdiction_info.name}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Show actions if user is the post author or current assignee */}
+                        {currentUser && (currentUser.id === post.author.id) && (
+                          <div className="flex items-center space-x-1">
+                            <button 
+                              onClick={handleAssignClick}
+                              disabled={assigneeLoading}
+                              className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors disabled:opacity-50"
+                            >
+                              {assigneeLoading ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <UserPlus className="w-3 h-3" />
+                              )}
+                              <span>Change</span>
+                            </button>
+                            <button 
+                              onClick={() => handleAssigneeUpdate(null)}
+                              disabled={assigneeLoading}
+                              className="text-xs text-red-600 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
+                            >
+                              Unassign
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ) : post.assignee ? (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <User className="w-4 h-4 text-gray-500" />
+                        <div className="flex-1">
+                          <span className="text-xs font-medium text-gray-700">Assignee:</span>
+                          <span className="text-xs text-gray-600 ml-2">{post.assignee}</span>
+                        </div>
+                      </div>
+                      {/* Show actions if user is the post author */}
+                      {currentUser && currentUser.id === post.author.id && (
+                        <div className="flex items-center space-x-1">
+                          <button 
+                            onClick={handleAssignClick}
+                            disabled={assigneeLoading}
+                            className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors disabled:opacity-50"
+                          >
+                            {assigneeLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <UserPlus className="w-3 h-3" />
+                            )}
+                            <span>Change</span>
+                          </button>
+                          <button 
+                            onClick={() => handleAssigneeUpdate(null)}
+                            disabled={assigneeLoading}
+                            className="text-xs text-red-600 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
+                          >
+                            Unassign
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <User className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-xs font-medium text-gray-700">Assigned Representative</span>
+                            </div>
+                            <div className="text-sm text-gray-500">Not assigned</div>
+                          </div>
+                        </div>
+                        {/* Show assign button only if user is the post author */}
+                        {currentUser && currentUser.id === post.author.id && (
+                          <button 
+                            onClick={handleAssignClick}
+                            disabled={assigneeLoading}
+                            className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors disabled:opacity-50"
+                          >
+                            {assigneeLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <UserPlus className="w-3 h-3" />
+                            )}
+                            <span>Assign</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Status */}
                 {post.status && (
@@ -778,29 +923,17 @@ export default function FeedCard({ post, customStatusComponent, customDetailsSta
                 )}
 
                 {/* Location Information */}
-                {((post.author.rep_accounts && post.author.rep_accounts.length > 0) || post.location) && (
+                {(post.author.rep_accounts && post.author.rep_accounts.length > 0) && (
                   <div className="space-y-2">
-                    {post.author.rep_accounts && post.author.rep_accounts.length > 0 && (
-                      <div className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
-                        <MapIcon className="w-4 h-4 text-gray-500" />
-                        <div className="flex-1">
-                          <span className="text-xs font-medium text-gray-700">Jurisdiction:</span>
-                          <span className="text-xs text-gray-600 ml-2">
-                            {post.author.rep_accounts[0]?.jurisdiction?.name || 'Not specified'}
-                          </span>
-                        </div>
+                    <div className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
+                      <MapIcon className="w-4 h-4 text-gray-500" />
+                      <div className="flex-1">
+                        <span className="text-xs font-medium text-gray-700">Jurisdiction:</span>
+                        <span className="text-xs text-gray-600 ml-2">
+                          {post.author.rep_accounts[0]?.jurisdiction?.name || 'Not specified'}
+                        </span>
                       </div>
-                    )}
-
-                    {post.location && (
-                      <div className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
-                        <MapPin className="w-4 h-4 text-gray-500" />
-                        <div className="flex-1">
-                          <span className="text-xs font-medium text-gray-700">Location:</span>
-                          <span className="text-xs text-gray-600 ml-2">{post.location}</span>
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -906,6 +1039,41 @@ export default function FeedCard({ post, customStatusComponent, customDetailsSta
           isOpen={showCommentModal}
           onClose={() => setShowCommentModal(false)}
         />
+      )}
+
+      {/* Assignee Selection Modal */}
+      {showAssigneeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Assign Representative</h3>
+              <button
+                onClick={() => setShowAssigneeModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <span className="sr-only">Close</span>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <AssigneeSelection
+                postId={post.id}
+                latitude={post.latitude}
+                longitude={post.longitude}
+                currentAssignee={post.assignee}
+                onAssign={async (assigneeId) => {
+                  await handleAssigneeUpdate(assigneeId)
+                  setShowAssigneeModal(false)
+                }}
+                onCancel={() => setShowAssigneeModal(false)}
+                isLoading={assigneeLoading}
+                showHeader={false}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
