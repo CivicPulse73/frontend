@@ -1,1 +1,0 @@
-console.log('=== Token Storage Debug ==='); console.log('Access Token:', localStorage.getItem('civic_access_token')); console.log('Refresh Token:', localStorage.getItem('civic_refresh_token')); console.log('User Data:', localStorage.getItem('civic_user_data')); console.log('=== End Debug ===');
