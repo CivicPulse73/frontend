@@ -17,7 +17,7 @@ This will:
 - Set up the Python backend with FastAPI
 - Install frontend dependencies  
 - Start both servers concurrently
-- Backend: http://localhost:8001
+- Backend: http://localhost:8000
 - Frontend: http://localhost:5173
 
 ### Manual Setup
@@ -230,7 +230,7 @@ BACKEND_CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000"]
 1. **Start the backend**: `cd backend && python run.py`
 2. **Start the frontend**: `npm run dev`
 3. **Access the application**: http://localhost:5173
-4. **API documentation**: http://localhost:8001/docs
+4. **API documentation**: http://localhost:8000/docs
 
 ## 📁 Project Structure
 
@@ -426,7 +426,7 @@ The built files will be in the `dist` directory.
 ```bash
 # Using Docker
 docker build -t civicpulse-backend .
-docker run -p 8001:8001 civicpulse-backend
+docker run -p 8000:8000 civicpulse-backend
 
 # Using gunicorn
 gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
@@ -549,8 +549,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
-EXPOSE 8001
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ### Environment Variables for Production

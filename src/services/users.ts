@@ -123,11 +123,13 @@ export const userService = {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to upload avatar')
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Failed to upload avatar')
     }
 
     const result = await response.json()
-    return result.data || result
+    // Return the avatar_url from the response data
+    return { avatar_url: result.data?.avatar_url || result.avatar_url }
   },
 
   async uploadCoverPhoto(file: File): Promise<{ cover_photo_url: string }> {
@@ -143,10 +145,12 @@ export const userService = {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to upload cover photo')
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Failed to upload cover photo')
     }
 
     const result = await response.json()
-    return result.data || result
+    // Return the cover_photo_url from the response data
+    return { cover_photo_url: result.data?.cover_photo_url || result.cover_photo_url }
   }
 }
