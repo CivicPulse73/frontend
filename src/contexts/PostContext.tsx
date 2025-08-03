@@ -13,6 +13,7 @@ interface PostContextType {
   toggleUpvote: (postId: string) => Promise<void>
   toggleDownvote: (postId: string) => Promise<void>
   toggleSave: (postId: string) => Promise<void>
+  updateAssignee: (postId: string, assigneeId: string | null) => Promise<void>
   addComment: (postId: string, content: string, user: User) => void
   loadPosts: (filters?: PostFilters, reset?: boolean) => Promise<void>
   loadMore: () => Promise<void>
@@ -182,6 +183,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const updateAssignee = async (postId: string, assigneeId: string | null) => {
+    try {
+      const updatedPost = await postsService.updatePostAssignee(postId, assigneeId)
+      
+      setPosts(prev => prev.map(post => 
+        post.id === postId ? updatedPost : post
+      ))
+    } catch (err) {
+      console.error('Failed to update assignee:', err)
+      throw err
+    }
+  }
+
   const addComment = (postId: string, _content: string, _user: User) => {
     // TODO: Implement real API call to add comment
     // For now, just increment comment count
@@ -204,6 +218,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toggleUpvote, 
       toggleDownvote, 
       toggleSave, 
+      updateAssignee,
       addComment,
       loadPosts,
       loadMore,

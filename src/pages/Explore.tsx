@@ -168,10 +168,6 @@ function ExploreCard({ post, onClick }: ExploreCardProps) {
         
         {/* Enhanced footer */}
         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-          <div className="flex items-center space-x-2">
-            <MapPin className="w-3 h-3 text-gray-400" />
-            <span className="text-xs text-gray-500 font-medium truncate">{post.location}</span>
-          </div>
           <div className="flex items-center space-x-3 text-xs text-gray-500">
             <div className="flex items-center space-x-1">
               <ArrowUp className={`w-3 h-3 ${post.is_upvoted ? 'text-blue-500' : ''}`} />
@@ -854,9 +850,6 @@ function InfiniteScrollDetailViewer({ posts, initialPostIndex, isOpen, onClose }
                           )}
                         </div>
                         <div className="flex items-center space-x-2 text-xs md:text-sm text-gray-500">
-                          <MapPin className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
-                          <span className="truncate">{post.location}</span>
-                          <span>•</span>
                           <span className="whitespace-nowrap">{getTimestamp(new Date(post.created_at))}</span>
                         </div>
                       </div>
