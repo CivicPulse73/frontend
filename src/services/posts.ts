@@ -209,5 +209,20 @@ export const postsService = {
       return transformPost(response.data.post)
     }
     throw new Error(response.error || 'Failed to update post status')
+  },
+
+  async updatePostAssignee(postId: string, assigneeId: string | null): Promise<CivicPost> {
+    const response = await apiClient.patch<ApiResponse<{ post: any }>>(`/posts/${postId}/assignee`, { 
+      assignee: assigneeId 
+    })
+    if (response.success && response.data?.post) {
+      return transformPost(response.data.post)
+    }
+    throw new Error(response.error || 'Failed to update post assignee')
+  },
+
+  async getRepresentativesByLocation(latitude: number, longitude: number): Promise<ApiResponse<any>> {
+    const response = await apiClient.get<ApiResponse<any>>(`/posts/representatives/by-location?latitude=${latitude}&longitude=${longitude}`)
+    return response
   }
 }
