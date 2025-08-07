@@ -9,6 +9,7 @@ interface FollowButtonProps {
   showIcon?: boolean
   size?: 'sm' | 'md' | 'lg'
   variant?: 'primary' | 'secondary' | 'outline'
+  initialFollowStatus?: boolean | null  // NEW: If provided, skip API call
   onFollowChange?: (isFollowing: boolean, mutual: boolean) => void
 }
 
@@ -18,6 +19,7 @@ export default function FollowButton({
   showIcon = true,
   size = 'md',
   variant = 'primary',
+  initialFollowStatus,  // NEW: Use this to skip API call
   onFollowChange
 }: FollowButtonProps) {
   const { user: currentUser } = useUser()
@@ -33,6 +35,15 @@ export default function FollowButton({
 
   // Check initial follow status
   useEffect(() => {
+    // If initialFollowStatus is provided, use it directly
+    if (initialFollowStatus !== undefined) {
+      setIsFollowing(initialFollowStatus === true)
+      setIsMutual(false)  // We don't get mutual status from posts API yet
+      setIsCheckingStatus(false)
+      return
+    }
+
+    // Otherwise, make API call (fallback for compatibility)
     const checkFollowStatus = async () => {
       try {
         setIsCheckingStatus(true)
@@ -47,7 +58,7 @@ export default function FollowButton({
     }
 
     checkFollowStatus()
-  }, [userId])
+  }, [userId, initialFollowStatus])
 
   const handleFollowToggle = async () => {
     if (isLoading) return
