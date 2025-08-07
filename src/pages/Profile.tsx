@@ -33,6 +33,7 @@ export default function Profile() {
   const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>('followers')
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [isUploadingCover, setIsUploadingCover] = useState(false)
+  const [avatarCacheBuster, setAvatarCacheBuster] = useState(0)
   const [freshUserData, setFreshUserData] = useState<any>(null)
   const [userStats, setUserStats] = useState<UserStats | null>(null)
   const [userStatsLoading, setUserStatsLoading] = useState(false)
@@ -216,6 +217,10 @@ export default function Profile() {
 
   if (!user) return null
 
+  // Debug: Log current avatar URL
+  console.log('🔍 Profile render - user.avatar_url:', user.avatar_url)
+  console.log('🔍 Profile render - avatarCacheBuster:', avatarCacheBuster)
+
   const savedPosts = posts.filter(post => post.is_saved)
   // Calculate statistics from API data or fallback to client-side calculation
   const totalUpvotes = userStats?.upvotes_received ?? userPosts.reduce((sum, post) => sum + post.upvotes, 0)
@@ -261,8 +266,33 @@ export default function Profile() {
 
     try {
       setIsUploadingAvatar(true)
-      const imageUrl = await handleFileUpload(file)
-      handleAvatarChange(imageUrl)
+      
+      // Validate file type and size
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please select an image file')
+      }
+
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        throw new Error('File size should be less than 5MB')
+      }
+
+      // Use the existing uploadAvatar service method
+      const result = await userService.uploadAvatar(file)
+      console.log('🔍 Upload result:', result)
+      
+      // Close the modal first
+      setShowAvatarModal(false)
+      console.log('✅ Avatar uploaded successfully')
+      
+      // Refresh user context to get updated data
+      console.log('🔄 Profile: About to call refreshUser...')
+      await refreshUser()
+      console.log('✅ Profile: refreshUser completed')
+      console.log('🔍 Profile: User state after refresh:', user)
+      
+      // Force image cache refresh
+      setAvatarCacheBuster(Date.now())
+      
     } catch (error) {
       console.error('Error uploading avatar:', error)
       alert(error instanceof Error ? error.message : 'Failed to upload image')
@@ -293,10 +323,32 @@ export default function Profile() {
     }
   }
 
-  const handleAvatarChange = (newAvatarUrl: string) => {
-    // TODO: Add updateUser functionality to UserContext
-    // updateUser({ avatar_url: newAvatarUrl })
-    setShowAvatarModal(false)
+  const handleAvatarChange = async (newAvatarUrl: string) => {
+    try {
+      if (!user) {
+        throw new Error('User not found')
+      }
+
+      // Only send the field that's actually changing to avoid validation conflicts
+      const updateData = {
+        avatar_url: newAvatarUrl
+      }
+
+      // Update the user profile via API
+      const updatedUser = await userService.updateProfile(updateData)
+      
+      // Close the modal first
+      setShowAvatarModal(false)
+      
+      console.log('✅ Avatar updated successfully')
+      
+      // Force a page reload to show the updated profile picture
+      window.location.reload()
+      
+    } catch (error) {
+      console.error('❌ Failed to update avatar:', error)
+      alert('Failed to update profile picture. Please try again.')
+    }
   }
 
   const handleEditProfile = () => {
@@ -334,10 +386,35 @@ export default function Profile() {
     coverFileInputRef.current?.click()
   }
 
-  const handleCoverChange = (newCoverUrl: string) => {
-    // TODO: Add updateUser functionality to UserContext  
-    // updateUser({ cover_photo: newCoverUrl })
-    setShowCoverModal(false)
+  const handleCoverChange = async (newCoverUrl: string) => {
+    try {
+      if (!user) {
+        throw new Error('User not found')
+      }
+
+      // Include required fields to avoid validation errors
+      const updateData = {
+        cover_photo: newCoverUrl,
+        username: user.username,
+        display_name: user.display_name || user.username,
+        bio: user.bio
+      }
+
+      // Update the user profile via API
+      const updatedUser = await userService.updateProfile(updateData)
+      
+      // Close the modal first
+      setShowCoverModal(false)
+      
+      console.log('✅ Cover photo updated successfully')
+      
+      // Force a page reload to show the updated cover photo
+      window.location.reload()
+      
+    } catch (error) {
+      console.error('❌ Failed to update cover photo:', error)
+      alert('Failed to update cover photo. Please try again.')
+    }
   }
 
   // Predefined avatar options
@@ -404,16 +481,16 @@ export default function Profile() {
         </div>
 
         {/* Profile Info */}
-        <div className="bg-white rounded-b-lg shadow-sm border border-gray-100 pt-0 pb-6 px-6 relative">
+        <div className="bg-white rounded-b-lg shadow-sm border border-gray-100 pt-0 pb-4 px-4 relative">
           {/* Avatar */}
-          <div className="relative -mt-12 mb-4">
+          <div className="relative -mt-12 mb-3">
             <div className="relative inline-block">
               <div 
                 onClick={() => setShowAvatarModal(true)}
                 className="cursor-pointer group"
               >
                 <Avatar
-                  src={user.avatar_url}
+                  src={user.avatar_url ? `${user.avatar_url}${avatarCacheBuster ? `?t=${avatarCacheBuster}` : ''}` : undefined}
                   alt={user.display_name || user.username}
                   size="2xl"
                   className="border-2 border-white shadow-lg transition-all duration-300 group-hover:shadow-xl group-hover:scale-105"
@@ -426,7 +503,7 @@ export default function Profile() {
           </div>
 
           {/* User Details */}
-          <div className="mb-6">
+          <div className="mb-4">
             <div className="flex items-center space-x-2 mb-2">
               <h1 className="text-2xl font-bold text-gray-900">{user.display_name || user.username}</h1>
               {user.verified && (
@@ -472,65 +549,67 @@ export default function Profile() {
             </p>
 
             {/* Follow Stats */}
-            <div className="mt-4">
-              <FollowStats
-                userId={user.id}
-                onClick={(type) => {
-                  setFollowModalTab(type)
-                  setShowFollowModal(true)
-                }}
-                className="justify-center"
-                size="md"
-              />
+            <div className="mt-3">
+              {user?.id && (
+                <FollowStats
+                  userId={user.id}
+                  onClick={(type) => {
+                    setFollowModalTab(type)
+                    setShowFollowModal(true)
+                  }}
+                  className="justify-center"
+                  size="md"
+                />
+              )}
             </div>
           </div>
 
           {/* Enhanced Stats Grid */}
-          <div className="grid grid-cols-4 gap-3 mb-6">
-            <div className="text-center p-3 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            <div className="text-center p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
               <div className="text-xl font-bold text-blue-700">{userPosts.length}</div>
               <div className="text-xs text-blue-600 font-medium">Posts</div>
             </div>
-            <div className="text-center p-3 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
+            <div className="text-center p-2 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
               <div className="text-xl font-bold text-green-700">{formatNumber(totalUpvotes)}</div>
               <div className="text-xs text-green-600 font-medium">Upvotes</div>
             </div>
-            <div className="text-center p-3 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
+            <div className="text-center p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
               <div className="text-xl font-bold text-purple-700">{totalComments}</div>
               <div className="text-xs text-purple-600 font-medium">Comments</div>
             </div>
-            <div className="text-center p-3 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200">
+            <div className="text-center p-2 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200">
               <div className="text-xl font-bold text-orange-700">{formatNumber(totalViews)}</div>
               <div className="text-xs text-orange-600 font-medium">Views</div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-3">
+          <div className="flex space-x-2">
             <button 
               onClick={handleEditProfile}
-              className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center space-x-2 shadow-sm"
+              className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-3 rounded-xl transition-colors flex items-center justify-center space-x-2 shadow-sm"
             >
               <Edit className="w-4 h-4" />
               <span>Edit Profile</span>
             </button>
             <button 
               onClick={handleSettings}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center space-x-2"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-xl transition-colors flex items-center justify-center space-x-2"
               title="Settings"
             >
               <Settings className="w-4 h-4" />
             </button>
             <button 
               onClick={handleShareProfile}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-xl transition-colors flex items-center justify-center"
               title="Share Profile"
             >
               <Share2 className="w-4 h-4" />
             </button>
             <button 
               onClick={handleMoreOptions}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-xl transition-colors flex items-center justify-center"
               title="More Options"
             >
               <MoreHorizontal className="w-4 h-4" />
@@ -540,147 +619,145 @@ export default function Profile() {
       </div>
 
       {/* Content Tabs */}
-      <div className="mt-4 bg-white rounded-lg shadow-sm border border-gray-100">
+      <div className="mt-4 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {/* Tab Navigation */}
-        <div className="flex border-b border-gray-100">
-          {/* Conditionally show Assigned tab if user has rep_accounts */}
-          {freshUserData?.rep_accounts && freshUserData.rep_accounts.length > 0 && (
+        <div className="p-4 pb-3">
+          <div className="flex space-x-2 mb-4 bg-gray-50 rounded-lg p-1">
+            {/* Conditionally show Assigned tab if user has rep_accounts */}
+            {freshUserData?.rep_accounts && freshUserData.rep_accounts.length > 0 && (
+              <button
+                onClick={() => {
+                  setActiveTab('assigned')
+                  if (activeTab !== 'assigned') {
+                    loadAssignedPosts()
+                  }
+                }}
+                className={`flex-1 flex items-center justify-center space-x-2 py-2.5 px-4 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'assigned'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Assigned</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  activeTab === 'assigned' 
+                    ? 'bg-gray-100 text-gray-700' 
+                    : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {assignedPosts.length}
+                </span>
+              </button>
+            )}
             <button
               onClick={() => {
-                setActiveTab('assigned')
-                if (activeTab !== 'assigned') {
-                  loadAssignedPosts()
+                setActiveTab('posts')
+                if (activeTab !== 'posts') {
+                  loadUserPosts()
                 }
               }}
-              className={`flex-1 py-4 px-4 text-sm font-medium transition-colors relative ${
-                activeTab === 'assigned' 
-                  ? 'text-primary-600 border-b-2 border-primary-600' 
-                  : 'text-gray-500 hover:text-gray-700'
+              className={`flex-1 flex items-center justify-center space-x-2 py-2.5 px-4 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'posts'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              <div className="flex items-center justify-center space-x-1">
-                <UserCheck className="w-4 h-4" />
-                <span>Assigned ({assignedPosts.length})</span>
-              </div>
+              <TrendingUp className="w-4 h-4" />
+              <span>{freshUserData?.rep_accounts && freshUserData.rep_accounts.length > 0 ? 'Posts' : 'My Posts'}</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                activeTab === 'posts' 
+                  ? 'bg-gray-100 text-gray-700' 
+                  : 'bg-gray-200 text-gray-600'
+              }`}>
+                {userPosts.length}
+              </span>
             </button>
-          )}
-          <button
-            onClick={() => {
-              setActiveTab('posts')
-              if (activeTab !== 'posts') {
-                loadUserPosts()
-              }
-            }}
-            className={`flex-1 py-4 px-4 text-sm font-medium transition-colors relative ${
-              activeTab === 'posts' 
-                ? 'text-primary-600 border-b-2 border-primary-600' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {freshUserData?.rep_accounts && freshUserData.rep_accounts.length > 0 ? 'Posts' : 'My Posts'} ({userPosts.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('saved')}
-            className={`flex-1 py-4 px-4 text-sm font-medium transition-colors relative ${
-              activeTab === 'saved' 
-                ? 'text-primary-600 border-b-2 border-primary-600' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Saved ({savedPosts.length})
-          </button>
+            <button
+              onClick={() => setActiveTab('saved')}
+              className={`flex-1 flex items-center justify-center space-x-2 py-2.5 px-4 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'saved'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Bookmark className="w-4 h-4" />
+              <span>Saved</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                activeTab === 'saved' 
+                  ? 'bg-gray-100 text-gray-700' 
+                  : 'bg-gray-200 text-gray-600'
+              }`}>
+                {savedPosts.length}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Tab Content */}
-        <div className="p-4">
+        <div className="px-4 pb-4">
           {activeTab === 'posts' && (
             <div>
-              {/* View Mode Toggle */}
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-gray-900">Your Posts</h3>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-lg transition-colors ${
-                      viewMode === 'list' ? 'bg-primary-100 text-primary-600' : 'text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-lg transition-colors ${
-                      viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
-                    <Grid className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                    <Filter className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
               {/* Posts Content */}
               {userPostsLoading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-2 text-gray-600">Loading your posts...</p>
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-gray-600 mx-auto"></div>
+                  <p className="mt-3 text-gray-600">Loading your posts...</p>
                 </div>
               ) : userPosts.length > 0 ? (
-                <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3' : 'space-y-3'}>
+                <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-4' : 'space-y-4'}>
                   {userPosts.map((post) => (
                     viewMode === 'list' ? (
-                      <ProfileFeedCard 
-                        key={post.id} 
-                        post={post} 
-                        onStatusUpdate={handleStatusUpdate}
-                        showStatusUpdate={true}
-                      />
+                      <div key={post.id}>
+                        <ProfileFeedCard 
+                          post={post} 
+                          onStatusUpdate={handleStatusUpdate}
+                          showStatusUpdate={true}
+                        />
+                      </div>
                     ) : (
-                      <div key={post.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-2">
+                      <div key={post.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow group">
+                        <div className="flex items-start justify-between mb-3">
                           <h4 className="font-medium text-gray-900 text-sm line-clamp-2">{post.title}</h4>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ml-2 ${
+                          <span className={`px-2 py-1 rounded text-xs font-medium ml-2 ${
                             post.post_type === 'issue' ? 'bg-red-100 text-red-800' :
                             post.post_type === 'announcement' ? 'bg-blue-100 text-blue-800' :
                             post.post_type === 'news' ? 'bg-green-100 text-green-800' :
-                            'bg-purple-100 text-purple-800'
+                            'bg-gray-100 text-gray-800'
                           }`}>
                             {post.post_type}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-xs text-gray-500">
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-4">
                             <span className="flex items-center space-x-1">
-                              <Heart className="w-3 h-3" />
-                              <span>{post.upvotes}</span>
+                              <Heart className="w-3.5 h-3.5" />
+                              <span className="font-medium">{post.upvotes}</span>
                             </span>
                             <span className="flex items-center space-x-1">
-                              <MessageCircle className="w-3 h-3" />
-                              <span>{post.comment_count}</span>
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span className="font-medium">{post.comment_count}</span>
                             </span>
                             <span className="flex items-center space-x-1">
-                              <Eye className="w-3 h-3" />
-                              <span>{Math.floor(Math.random() * 200) + 50}</span>
+                              <Eye className="w-3.5 h-3.5" />
+                              <span className="font-medium">{Math.floor(Math.random() * 200) + 50}</span>
                             </span>
                           </div>
-                          <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                          <span className="bg-gray-100 px-2 py-1 rounded-md font-medium">{new Date(post.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
                     )
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Edit className="w-8 h-8 text-gray-400" />
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <div className="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <Edit className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
-                  <p className="text-gray-500 mb-4">Share your first community update!</p>
-                  <button 
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No posts yet</h3>
+                  <p className="text-gray-600 mb-3 max-w-sm mx-auto">Ready to make your voice heard? Share your first community update.</p>
+                  <button
                     onClick={() => window.location.href = '/post'}
-                    className="btn-primary"
+                    className="bg-gray-900 hover:bg-gray-800 text-white font-medium py-2 px-6 rounded-md transition-colors"
                   >
                     Create Your First Post
                   </button>
@@ -691,30 +768,30 @@ export default function Profile() {
 
           {activeTab === 'assigned' && (
             <div>
-              <h3 className="font-medium text-gray-900 mb-4">Assigned Issues</h3>
               {assignedPostsLoading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-2 text-gray-600">Loading assigned issues...</p>
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-gray-600 mx-auto"></div>
+                  <p className="mt-3 text-gray-600">Loading assigned issues...</p>
                 </div>
               ) : assignedPosts.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {assignedPosts.map((post) => (
-                    <ProfileFeedCard 
-                      key={post.id} 
-                      post={post} 
-                      onStatusUpdate={handleStatusUpdate}
-                      showStatusUpdate={true}
-                    />
+                    <div key={post.id}>
+                      <ProfileFeedCard 
+                        post={post} 
+                        onStatusUpdate={handleStatusUpdate}
+                        showStatusUpdate={true}
+                      />
+                    </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <UserCheck className="w-8 h-8 text-gray-400" />
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <div className="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <UserCheck className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No assigned issues</h3>
-                  <p className="text-gray-500">Issues assigned to your representative accounts will appear here</p>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No assigned issues</h3>
+                  <p className="text-gray-600 max-w-sm mx-auto">Issues assigned to your representative accounts will appear here when available.</p>
                 </div>
               )}
             </div>
@@ -722,27 +799,28 @@ export default function Profile() {
 
           {activeTab === 'saved' && (
             <div>
-              <h3 className="font-medium text-gray-900 mb-4">Saved Posts</h3>
               {savedPosts.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {savedPosts.map((post) => (
-                    <div key={post.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                      <Bookmark className="w-4 h-4 text-yellow-500 fill-current" />
+                    <div key={post.id} className="flex items-center space-x-3 p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow group">
+                      <div className="p-2 bg-gray-100 rounded-md">
+                        <Bookmark className="w-4 h-4 text-gray-600" />
+                      </div>
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 text-sm">{post.title}</h4>
-                        <p className="text-xs text-gray-500">Saved • {new Date(post.created_at).toLocaleDateString()}</p>
+                        <h4 className="font-medium text-gray-900">{post.title}</h4>
+                        <p className="text-sm text-gray-600">Saved • {new Date(post.created_at).toLocaleDateString()}</p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-gray-400" />
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Bookmark className="w-8 h-8 text-gray-400" />
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <div className="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <Bookmark className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No saved posts</h3>
-                  <p className="text-gray-500">Posts you save will appear here</p>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No saved posts</h3>
+                  <p className="text-gray-600 max-w-sm mx-auto">Posts you bookmark will appear here for easy access later.</p>
                 </div>
               )}
             </div>
@@ -755,7 +833,7 @@ export default function Profile() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full max-h-96 overflow-hidden">
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-100">
+            <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Change Profile Picture</h3>
                 <button 
@@ -768,7 +846,7 @@ export default function Profile() {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6">
+            <div className="p-4">
               <p className="text-sm text-gray-600 mb-4">Choose a new profile picture:</p>
               
               {/* Avatar Options Grid */}
@@ -778,9 +856,9 @@ export default function Profile() {
                     key={index}
                     onClick={() => handleAvatarChange(avatarUrl)}
                     className={`relative group transition-all duration-200 ${
-                      user.avatar_url === avatarUrl 
-                        ? 'ring-4 ring-primary-500 ring-offset-2' 
-                        : 'hover:ring-2 hover:ring-primary-300 hover:ring-offset-1'
+                      user?.avatar_url === avatarUrl 
+                        ? 'ring-4 ring-gray-400 ring-offset-2' 
+                        : 'hover:ring-2 hover:ring-gray-300 hover:ring-offset-1'
                     }`}
                   >
                     <Avatar
@@ -789,9 +867,9 @@ export default function Profile() {
                       size="xl"
                       className="w-full"
                     />
-                    {user.avatar_url === avatarUrl && (
-                      <div className="absolute inset-0 bg-primary-500 bg-opacity-20 rounded-full flex items-center justify-center">
-                        <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center">
+                    {user?.avatar_url === avatarUrl && (
+                      <div className="absolute inset-0 bg-gray-600 bg-opacity-20 rounded-full flex items-center justify-center">
+                        <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
                           <span className="text-white text-xs font-bold">✓</span>
                         </div>
                       </div>
@@ -805,7 +883,7 @@ export default function Profile() {
                 <button 
                   onClick={handleCustomAvatarUpload}
                   disabled={isUploadingAvatar}
-                  className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-400 hover:bg-primary-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Camera className="w-5 h-5 text-gray-500" />
                   <span className="text-sm font-medium text-gray-700">
@@ -826,7 +904,7 @@ export default function Profile() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full max-h-96 overflow-hidden">
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-100">
+            <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Change Cover Photo</h3>
                 <button 
@@ -839,7 +917,7 @@ export default function Profile() {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6">
+            <div className="p-4">
               <p className="text-sm text-gray-600 mb-4">Choose a new cover photo:</p>
               
               {/* Cover Options Grid */}
@@ -849,9 +927,9 @@ export default function Profile() {
                     key={index}
                     onClick={() => handleCoverChange(coverUrl)}
                     className={`relative group transition-all duration-200 rounded-lg overflow-hidden ${
-                      user.cover_photo === coverUrl 
-                        ? 'ring-4 ring-primary-500 ring-offset-2' 
-                        : 'hover:ring-2 hover:ring-primary-300 hover:ring-offset-1'
+                      user?.cover_photo === coverUrl 
+                        ? 'ring-4 ring-gray-400 ring-offset-2' 
+                        : 'hover:ring-2 hover:ring-gray-300 hover:ring-offset-1'
                     }`}
                   >
                     <div 
@@ -860,9 +938,9 @@ export default function Profile() {
                         backgroundImage: `url(${coverUrl})`,
                       }}
                     />
-                    {user.cover_photo === coverUrl && (
-                      <div className="absolute inset-0 bg-primary-500 bg-opacity-20 flex items-center justify-center">
-                        <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center">
+                    {user?.cover_photo === coverUrl && (
+                      <div className="absolute inset-0 bg-gray-600 bg-opacity-20 flex items-center justify-center">
+                        <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
                           <span className="text-white text-xs font-bold">✓</span>
                         </div>
                       </div>
@@ -876,7 +954,7 @@ export default function Profile() {
                 <button 
                   onClick={handleCustomCoverUpload}
                   disabled={isUploadingCover}
-                  className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-400 hover:bg-primary-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Camera className="w-5 h-5 text-gray-500" />
                   <span className="text-sm font-medium text-gray-700">
@@ -897,9 +975,9 @@ export default function Profile() {
         <FollowModal
           isOpen={showFollowModal}
           onClose={() => setShowFollowModal(false)}
-          userId={user.id}
+          userId={user?.id || ''}
           initialTab={followModalTab}
-          userName={user.display_name || user.username}
+          userName={user?.display_name || user?.username || ''}
         />
       )}
     </div>

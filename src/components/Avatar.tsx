@@ -31,6 +31,11 @@ export default function Avatar({ src, alt, size = 'lg', className = '', onClick 
   const [imageError, setImageError] = useState(false)
   const [imageLoading, setImageLoading] = useState(true)
 
+  // Debug: Log what src we receive
+  console.log('🔍 Avatar component - src prop:', src)
+  console.log('🔍 Avatar component - src type:', typeof src)
+  console.log('🔍 Avatar component - src length:', src?.length)
+
   const handleImageError = () => {
     setImageError(true)
     setImageLoading(false)
@@ -42,6 +47,9 @@ export default function Avatar({ src, alt, size = 'lg', className = '', onClick 
   }
 
   const showFallback = !src || imageError
+
+  console.log('🔍 Avatar component - showFallback:', showFallback)
+  console.log('🔍 Avatar component - imageError:', imageError)
 
   const Component = onClick ? 'button' : 'div'
   const baseClasses = `${sizeClasses[size]} rounded-full flex-shrink-0 ${className}`

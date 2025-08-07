@@ -31,18 +31,23 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes cache duration
 
 export const userService = {
   async getCurrentUser(): Promise<User> {
+    console.log('🔍 getCurrentUser: Cache status - userCache:', !!userCache, 'expired:', Date.now() >= userCacheExpiry)
+    
     // Check cache first
     if (userCache && Date.now() < userCacheExpiry) {
+      console.log('📦 getCurrentUser: Returning cached user data')
       return userCache
     }
     
     // Check localStorage for user data
     const storedUser = localStorage.getItem('current_user')
     const storedExpiry = localStorage.getItem('current_user_expiry')
+    console.log('🔍 getCurrentUser: localStorage check - hasUser:', !!storedUser, 'hasExpiry:', !!storedExpiry)
     
     if (storedUser && storedExpiry && Date.now() < parseInt(storedExpiry)) {
       try {
         const userData = JSON.parse(storedUser) as User
+        console.log('📦 getCurrentUser: Returning localStorage user data')
         userCache = userData
         userCacheExpiry = parseInt(storedExpiry)
         return userData
@@ -52,7 +57,8 @@ export const userService = {
         localStorage.removeItem('current_user_expiry')
       }
     }
-    
+
+    console.log('🌐 getCurrentUser: Fetching fresh data from API')
     const response = await apiClient.get<ApiResponse<User>>('/users/profile')
     
     if (!response.success || !response.data) {
@@ -60,6 +66,8 @@ export const userService = {
     }
     
     const user = response.data
+    console.log('🔍 getCurrentUser: API response user data:', user)
+    console.log('🔍 getCurrentUser: API response avatar_url:', user.avatar_url)
     
     // Update cache and localStorage
     userCache = user
@@ -88,7 +96,13 @@ export const userService = {
   },
 
   async updateProfile(userData: UpdateUserRequest): Promise<User> {
-    const user = await apiClient.put<User>('/users/profile', userData)
+    const response = await apiClient.put<ApiResponse<User>>('/users/profile', userData)
+    
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Failed to update user profile')
+    }
+    
+    const user = response.data
     
     // Update cache and localStorage
     userCache = user
@@ -141,6 +155,13 @@ export const userService = {
     }
 
     const result = await response.json()
+    
+    // Clear cache to force fresh data on next request
+    userCache = null
+    userCacheExpiry = 0
+    localStorage.removeItem('current_user')
+    localStorage.removeItem('current_user_expiry')
+    
     // Return the avatar_url from the response data
     return { avatar_url: result.data?.avatar_url || result.avatar_url }
   },
@@ -163,6 +184,13 @@ export const userService = {
     }
 
     const result = await response.json()
+    
+    // Clear cache to force fresh data on next request
+    userCache = null
+    userCacheExpiry = 0
+    localStorage.removeItem('current_user')
+    localStorage.removeItem('current_user_expiry')
+    
     // Return the cover_photo_url from the response data
     return { cover_photo_url: result.data?.cover_photo_url || result.cover_photo_url }
   }

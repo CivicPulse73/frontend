@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { authManager, User, LoginRequest, RegisterRequest } from '../services/authManager'
+import { userService } from '../services/users'
 
 interface UserContextType {
   user: User | null
@@ -52,6 +53,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         if (hasValidToken) {
           const storedUser = authManager.getStoredUser()
+          console.log('🔍 AuthManager stored user:', storedUser)
+          console.log('🔍 AuthManager stored user avatar_url:', storedUser?.avatar_url)
           
           if (storedUser) {
             if (import.meta.env.DEV) {
@@ -206,22 +209,33 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('🔄 UserContext: Refreshing user...')
       
       if (authManager.isAuthenticated()) {
-        const storedUser = authManager.getStoredUser()
-        if (storedUser) {
-          setUser(storedUser)
-          console.log('✅ UserContext: User refreshed from storage')
-        } else {
-          await authManager.logout()
-          setUser(null)
-          console.log('⚠️ UserContext: No stored user, logged out')
-        }
+        // Fetch fresh user data from API
+        const freshUser = await userService.getCurrentUser()
+        console.log('🔍 UserContext: Fresh user data from API:', freshUser)
+        console.log('🔍 UserContext: Fresh user avatar_url:', freshUser.avatar_url)
+        console.log('🔍 UserContext: About to call setUser with fresh data')
+        setUser(freshUser as unknown as User)
+        console.log('✅ UserContext: setUser called with fresh data')
+        console.log('🔍 UserContext: Current user state after setUser:', user)
       } else {
         setUser(null)
         console.log('❌ UserContext: Not authenticated, cleared user')
       }
     } catch (error) {
       console.error('❌ UserContext: Failed to refresh user:', error)
-      setUser(null)
+      // Fallback to stored user if API fails
+      if (authManager.isAuthenticated()) {
+        const storedUser = authManager.getStoredUser()
+        if (storedUser) {
+          setUser(storedUser)
+          console.log('⚠️ UserContext: API failed, using stored user')
+        } else {
+          await authManager.logout()
+          setUser(null)
+        }
+      } else {
+        setUser(null)
+      }
     }
   }
 

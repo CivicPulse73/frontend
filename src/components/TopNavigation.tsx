@@ -14,34 +14,6 @@ export default function TopNavigation() {
           <div className="flex items-center space-x-2">
             <h1 className="text-xl font-bold text-primary-600">CivicPulse</h1>
           </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center space-x-2">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/search')}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-              aria-label="Search"
-            >
-              <Search size={20} />
-            </motion.button>
-            
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell size={20} />
-            </motion.button>
-            
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-              aria-label="Settings"
-            >
-              <Settings size={20} />
-            </motion.button>
-          </div>
         </div>
       </div>
     </nav>
