@@ -25,9 +25,14 @@ export default function FollowStats({
   const [stats, setStats] = useState<FollowStatsType | null>(initialStats || null)
   const [isLoading, setIsLoading] = useState(!initialStats)
 
+  // Early return if userId is invalid
+  if (!userId || userId === 'undefined' || userId === '') {
+    return null
+  }
+
   useEffect(() => {
     const loadStats = async () => {
-      if (initialStats) return
+      if (initialStats || !userId || userId === 'undefined' || userId === '') return
 
       try {
         setIsLoading(true)
@@ -62,17 +67,19 @@ export default function FollowStats({
     lg: 'w-6 h-6'
   }
 
-  const spacingClasses = layout === 'horizontal' ? 'space-x-6' : 'space-y-2'
+  const spacingClasses = layout === 'horizontal' ? 'space-x-8' : 'space-y-3'
   const flexDirection = layout === 'horizontal' ? 'flex-row' : 'flex-col'
 
   if (isLoading) {
     return (
       <div className={`flex ${flexDirection} ${spacingClasses} ${className}`}>
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-20"></div>
+        <div className="animate-pulse flex flex-col items-center space-y-1">
+          <div className="h-5 bg-gray-200 rounded w-8"></div>
+          <div className="h-3 bg-gray-200 rounded w-12"></div>
         </div>
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-20"></div>
+        <div className="animate-pulse flex flex-col items-center space-y-1">
+          <div className="h-5 bg-gray-200 rounded w-8"></div>
+          <div className="h-3 bg-gray-200 rounded w-12"></div>
         </div>
       </div>
     )
@@ -106,26 +113,45 @@ export default function FollowStats({
     <button
       onClick={() => onClick?.(type)}
       className={`
-        flex items-center space-x-1 transition-colors duration-200
-        ${onClick ? 'hover:text-blue-600 cursor-pointer' : 'cursor-default'}
-        ${sizeClasses[size]}
+        group flex flex-col items-center justify-center transition-all duration-200 py-2 px-3 rounded-lg
+        ${onClick ? 'hover:bg-blue-50 hover:shadow-sm cursor-pointer' : 'cursor-default'}
       `}
       disabled={!onClick}
     >
-      {showIcons && <Icon className={`text-gray-500 ${iconSizes[size]}`} />}
-      <span className="font-semibold text-gray-900">{formatCount(count)}</span>
-      <span className="text-gray-600">{label}</span>
+      <div className={`
+        font-bold text-blue-600
+        ${size === 'sm' ? 'text-lg' : size === 'md' ? 'text-xl' : 'text-2xl'}
+        ${onClick ? 'group-hover:text-blue-700 group-hover:scale-105' : ''}
+        transition-all duration-200
+      `}>
+        {formatCount(count)}
+      </div>
+      <div className={`
+        text-gray-500 font-medium leading-tight
+        ${size === 'sm' ? 'text-xs' : size === 'md' ? 'text-xs' : 'text-sm'}
+        ${onClick ? 'group-hover:text-blue-600' : ''}
+        transition-colors duration-200
+      `}>
+        {label}
+      </div>
     </button>
   )
 
   return (
-    <div className={`flex ${flexDirection} ${spacingClasses} ${className}`}>
+    <div className={`flex ${flexDirection} ${spacingClasses} ${className} justify-center`}>
       <StatItem
         type="followers"
         count={stats.followers_count}
         label={stats.followers_count === 1 ? 'Follower' : 'Followers'}
         icon={Users}
       />
+      
+      {/* Separator Line */}
+      <div className={`
+        ${layout === 'horizontal' ? 'w-px h-12 bg-blue-200' : 'h-px w-16 bg-blue-200'}
+        self-center
+      `}></div>
+      
       <StatItem
         type="following"
         count={stats.following_count}

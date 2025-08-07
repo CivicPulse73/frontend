@@ -10,6 +10,7 @@ interface LoginData {
 interface RegisterData {
   email: string
   password: string
+  confirmPassword: string
   username: string
   display_name: string
   bio?: string
@@ -37,6 +38,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
   const [registerData, setRegisterData] = useState<RegisterData>({
     email: '',
     password: '',
+    confirmPassword: '',
     username: '',
     display_name: '',
     bio: ''
@@ -61,8 +63,16 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
     setError('')
     setSuccess('')
     
+    // Check if passwords match
+    if (registerData.password !== registerData.confirmPassword) {
+      setError('Passwords do not match. Please make sure both password fields are identical.')
+      return
+    }
+    
     try {
-      await register(registerData)
+      // Don't send confirmPassword to the API
+      const { confirmPassword, ...userData } = registerData
+      await register(userData)
       setSuccess('Account created successfully! Welcome to CivicPulse!')
       setShowSuccess(true)
       
@@ -245,9 +255,47 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
                 </p>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={registerData.confirmPassword}
+                    onChange={(e) => setRegisterData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10 ${
+                      registerData.confirmPassword && registerData.password !== registerData.confirmPassword
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-gray-300'
+                    }`}
+                    required
+                    minLength={8}
+                    placeholder="Re-enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {registerData.confirmPassword && registerData.password !== registerData.confirmPassword && (
+                  <p className="mt-1 text-xs text-red-600">
+                    Passwords do not match
+                  </p>
+                )}
+                {registerData.confirmPassword && registerData.password === registerData.confirmPassword && registerData.confirmPassword.length >= 8 && (
+                  <p className="mt-1 text-xs text-green-600">
+                    Passwords match ✓
+                  </p>
+                )}
+              </div>
+
               <button
                 type="submit"
-                disabled={loading || showSuccess}
+                disabled={loading || showSuccess || (registerData.password !== registerData.confirmPassword)}
                 className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {showSuccess ? (

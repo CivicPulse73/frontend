@@ -381,6 +381,10 @@ export default function FeedCard({ post, customStatusComponent, customDetailsSta
     }
   }
 
+  // Debug: Log post author data
+  console.log('🔍 FeedCard - post.author:', post.author);
+  console.log('🔍 FeedCard - post.author.avatar_url:', post.author.avatar_url);
+
   return (
     <div className="feed-card fade-in hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 overflow-visible">
       {/* Header */}
@@ -455,6 +459,7 @@ export default function FeedCard({ post, customStatusComponent, customDetailsSta
                 size="sm"
                 variant="outline"
                 showIcon={false}
+                context="feed"
                 className="text-xs"
               />
             )}

@@ -28,6 +28,11 @@ export default function FollowModal({
   const [followersPage, setFollowersPage] = useState(1)
   const [followingPage, setFollowingPage] = useState(1)
   const [followersHasMore, setFollowersHasMore] = useState(true)
+
+  // Early return if modal is not open or userId is invalid
+  if (!isOpen || !userId || userId === 'undefined' || userId === '') {
+    return null
+  }
   const [followingHasMore, setFollowingHasMore] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -61,6 +66,8 @@ export default function FollowModal({
   }
 
   const loadFollowers = async (page: number = 1, reset: boolean = false) => {
+    if (!userId || userId === 'undefined' || userId === '') return
+    
     try {
       if (!reset) setIsLoadingMore(true)
       
@@ -82,6 +89,8 @@ export default function FollowModal({
   }
 
   const loadFollowing = async (page: number = 1, reset: boolean = false) => {
+    if (!userId || userId === 'undefined' || userId === '') return
+    
     try {
       if (!reset) setIsLoadingMore(true)
       

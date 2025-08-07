@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { ArrowLeft, MessageCircle, TrendingUp, FileText, Users, MapPin, Calendar, Share2, MoreHorizontal, List, Grid, Filter, Heart, Eye } from 'lucide-react'
+import { ArrowLeft, MessageCircle, TrendingUp, FileText, Users, MapPin, Calendar, Share2, MoreHorizontal } from 'lucide-react'
 import { usePosts } from '../contexts/PostContext'
 import { useUser } from '../contexts/UserContext'
 import { userService } from '../services/users'
@@ -11,7 +11,6 @@ import RepresentativeAccountTags from '../components/RepresentativeAccountTags'
 import FollowButton from '../components/FollowButton'
 import FollowStats from '../components/FollowStats'
 import FollowModal from '../components/FollowModal'
-import ProfileFeedCard from '../components/Posts/ProfileFeedCard'
 
 export default function UserProfile() {
   const { userId } = useParams()
@@ -27,7 +26,6 @@ export default function UserProfile() {
   const [assignedTickets, setAssignedTickets] = useState<CivicPost[]>([])
   const [loadingTickets, setLoadingTickets] = useState(false)
   const [activeTab, setActiveTab] = useState<'posts' | 'assigned'>('posts')
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
 
   // Load user profile by ID
   useEffect(() => {
@@ -374,96 +372,109 @@ export default function UserProfile() {
             )}
           </div>
 
-        {/* Tab Content */}
-        <div className="px-4 pb-4">
-          {activeTab === 'posts' && (
-              <div>
-                {/* Posts Content */}
-                {userPosts.length > 0 ? (
-                  <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-4' : 'space-y-4'}>
-                    {userPosts.map((post) => (
-                      viewMode === 'list' ? (
-                        <div key={post.id}>
-                          <ProfileFeedCard 
-                            post={post} 
-                            onStatusUpdate={() => {}}
-                            showStatusUpdate={false}
-                          />
-                        </div>
-                      ) : (
-                        <div key={post.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow group">
-                          <div className="flex items-start justify-between mb-3">
-                            <h4 className="font-medium text-gray-900 text-sm line-clamp-2">{post.title}</h4>
-                            <span className={`px-2 py-1 rounded text-xs font-medium ml-2 ${
-                              post.post_type === 'issue' ? 'bg-red-100 text-red-800' :
-                              post.post_type === 'announcement' ? 'bg-blue-100 text-blue-800' :
-                              post.post_type === 'news' ? 'bg-green-100 text-green-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {post.post_type}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-xs text-gray-500">
-                            <div className="flex items-center space-x-4">
-                              <span className="flex items-center space-x-1">
-                                <Heart className="w-3.5 h-3.5" />
-                                <span className="font-medium">{post.upvotes}</span>
-                              </span>
-                              <span className="flex items-center space-x-1">
-                                <MessageCircle className="w-3.5 h-3.5" />
-                                <span className="font-medium">{post.comment_count}</span>
-                              </span>
-                              <span className="flex items-center space-x-1">
-                                <Eye className="w-3.5 h-3.5" />
-                                <span className="font-medium">{Math.floor(Math.random() * 200) + 50}</span>
-                              </span>
-                            </div>
-                            <span className="bg-gray-100 px-2 py-1 rounded-md font-medium">{new Date(post.created_at).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      )
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 bg-gray-50 rounded-lg">
-                    <div className="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                      <FileText className="w-6 h-6 text-white" />
+          {/* Tab Content */}
+          <div className="space-y-3">
+            {/* Posts Tab */}
+            {activeTab === 'posts' && (
+              <div className="space-y-3">
+                {userPosts.map((post) => (
+                  <div key={post.id} className="p-4 border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-medium text-gray-900 text-sm line-clamp-2">{post.title}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ml-2 flex-shrink-0 ${
+                        post.post_type === 'issue' ? 'bg-red-100 text-red-800' :
+                        post.post_type === 'announcement' ? 'bg-blue-100 text-blue-800' :
+                        post.post_type === 'news' ? 'bg-green-100 text-green-800' :
+                        'bg-purple-100 text-purple-800'
+                      }`}>
+                        {post.post_type}
+                      </span>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No posts yet</h3>
-                    <p className="text-gray-600 mb-3 max-w-sm mx-auto">This user hasn't shared any posts with the community yet.</p>
+                    <p className="text-gray-600 text-sm line-clamp-2 mb-3">{post.content}</p>
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <div className="flex items-center space-x-3">
+                        <span className="flex items-center space-x-1">
+                          <TrendingUp className="w-3 h-3" />
+                          <span>{post.upvotes} upvotes</span>
+                        </span>
+                        <span className="flex items-center space-x-1">
+                          <MessageCircle className="w-3 h-3" />
+                          <span>{post.comment_count} comments</span>
+                        </span>
+                      </div>
+                      <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+                
+                {userPosts.length === 0 && (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">No posts yet</p>
+                    <p className="text-gray-400 text-xs">Posts will appear here when this user shares something</p>
                   </div>
                 )}
               </div>
             )}
 
-          {activeTab === 'assigned' && (
-              <div>
-                {/* Assigned Posts Content */}
+            {/* Assigned Posts Tab */}
+            {activeTab === 'assigned' && (
+              <div className="space-y-3">
                 {loadingTickets ? (
-                  <div className="text-center py-8 bg-gray-50 rounded-lg">
-                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-orange-600 mx-auto"></div>
-                    <p className="mt-3 text-gray-600">Loading assigned issues...</p>
-                  </div>
-                ) : assignedTickets.length > 0 ? (
-                  <div className="space-y-4">
-                    {assignedTickets.map((ticket) => (
-                      <div key={ticket.id}>
-                        <ProfileFeedCard 
-                          post={ticket} 
-                          onStatusUpdate={() => {}}
-                          showStatusUpdate={false}
-                        />
-                      </div>
-                    ))}
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto mb-2"></div>
+                    <p className="text-gray-500 text-sm">Loading assigned posts...</p>
                   </div>
                 ) : (
-                  <div className="text-center py-8 bg-gray-50 rounded-lg">
-                    <div className="w-12 h-12 bg-orange-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                      <TrendingUp className="w-6 h-6 text-white" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No assigned issues</h3>
-                    <p className="text-gray-600 max-w-sm mx-auto">This representative doesn't have any assigned community issues yet.</p>
-                  </div>
+                  <>
+                    {assignedTickets.map((ticket) => (
+                      <div key={ticket.id} className="p-4 border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-medium text-gray-900 text-sm line-clamp-2">{ticket.title}</h3>
+                          <div className="flex flex-col space-y-1 ml-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium text-center ${
+                              ticket.post_type === 'issue' ? 'bg-red-100 text-red-800' :
+                              ticket.post_type === 'announcement' ? 'bg-blue-100 text-blue-800' :
+                              ticket.post_type === 'news' ? 'bg-green-100 text-green-800' :
+                              'bg-purple-100 text-purple-800'
+                            }`}>
+                              {ticket.post_type}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium text-center ${
+                              ticket.status === 'open' ? 'bg-yellow-100 text-yellow-800' :
+                              ticket.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                              ticket.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {ticket.status}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-gray-600 text-sm line-clamp-2 mb-3">{ticket.content}</p>
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center space-x-3">
+                            <span className="flex items-center space-x-1">
+                              <TrendingUp className="w-3 h-3" />
+                              <span>{ticket.upvotes} upvotes</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Users className="w-3 h-3" />
+                              <span>by {ticket.author.display_name || ticket.author.username}</span>
+                            </span>
+                          </div>
+                          <span>{new Date(ticket.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {assignedTickets.length === 0 && (
+                      <div className="text-center py-8">
+                        <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500 text-sm">No assigned posts yet</p>
+                        <p className="text-gray-400 text-xs">Posts assigned to this representative will appear here</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { Card, Button } from '../components/UI'
 import RepresentativeSettings from '../components/RepresentativeSettings'
+import { useNavigate } from 'react-router-dom'
 import { 
   User, 
   Crown, 
@@ -14,7 +15,9 @@ import {
   HelpCircle,
   ChevronRight,
   ArrowLeft,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  LogOut,
+  AlertTriangle
 } from 'lucide-react'
 
 type SettingsSection = 
@@ -28,8 +31,25 @@ type SettingsSection =
   | 'about'
 
 export default function Settings() {
-  const { user } = useUser()
+  const { user, logout } = useUser()
+  const navigate = useNavigate()
   const [activeSection, setActiveSection] = useState<SettingsSection>('main')
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true)
+      await logout()
+      // Navigate to home page after successful logout
+      navigate('/')
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Still navigate even if logout fails
+      navigate('/')
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
 
   if (!user) {
     return (
@@ -80,7 +100,7 @@ export default function Settings() {
       icon: Lock,
       title: 'Security',
       description: 'Password and security settings',
-      comingSoon: true
+      comingSoon: false
     },
     {
       id: 'accessibility' as const,
@@ -171,9 +191,32 @@ export default function Settings() {
           <div className="flex-1">
             <h3 className="font-medium text-gray-900">{user.display_name || user.username}</h3>
             <p className="text-sm text-gray-600">{user.email}</p>
+            <div className="text-xs text-gray-500 mt-1">
+              Member since {new Date(user.created_at).getFullYear()}
+            </div>
           </div>
-          <div className="text-xs text-gray-500">
-            Member since {new Date(user.created_at).getFullYear()}
+        </div>
+        
+        {/* Quick Actions */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="flex space-x-2">
+            <Button
+              onClick={() => setActiveSection('security')}
+              variant="outline"
+              className="flex-1 text-sm"
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              Security
+            </Button>
+            <Button
+              onClick={handleLogout}
+              loading={isLoggingOut}
+              variant="outline"
+              className="flex-1 text-sm border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              {isLoggingOut ? 'Signing Out...' : 'Sign Out'}
+            </Button>
           </div>
         </div>
       </Card>
@@ -236,6 +279,103 @@ export default function Settings() {
     </div>
   )
 
+  const renderSecuritySettings = () => (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center space-x-3 mb-6">
+        <button
+          onClick={() => setActiveSection('main')}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Security Settings</h1>
+          <p className="text-gray-600">Manage your account security</p>
+        </div>
+      </div>
+
+      {/* Security Options */}
+      <div className="space-y-4">
+        {/* Password Section */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Lock className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">Change Password</h3>
+                <p className="text-sm text-gray-600">Update your account password</p>
+              </div>
+            </div>
+            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+              Coming Soon
+            </span>
+          </div>
+        </Card>
+
+        {/* Two-Factor Authentication */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <Shield className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">Two-Factor Authentication</h3>
+                <p className="text-sm text-gray-600">Add an extra layer of security</p>
+              </div>
+            </div>
+            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+              Coming Soon
+            </span>
+          </div>
+        </Card>
+
+        {/* Logout Section */}
+        <Card className="p-4 border-red-200">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                <LogOut className="w-4 h-4 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">Sign Out</h3>
+                <p className="text-sm text-gray-600">Sign out of your account on this device</p>
+              </div>
+            </div>
+            
+            <div className="pt-2">
+              <Button
+                onClick={handleLogout}
+                loading={isLoggingOut}
+                variant="outline"
+                className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+              >
+                {isLoggingOut ? 'Signing Out...' : 'Sign Out'}
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Account Deletion Warning */}
+        <Card className="p-4 bg-orange-50 border-orange-200">
+          <div className="flex items-start space-x-3">
+            <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="font-medium text-orange-900">Account Deletion</h3>
+              <p className="text-sm text-orange-800 mt-1">
+                Need to delete your account? Contact support for assistance with account deletion. 
+                This action cannot be undone and will permanently remove all your data.
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  )
+
   const renderComingSoonSection = (title: string, description: string, icon: any) => {
     const IconComponent = icon
     
@@ -274,9 +414,9 @@ export default function Settings() {
       {activeSection === 'main' && renderMainSettings()}
       {activeSection === 'profile' && renderProfileSettings()}
       {activeSection === 'representative' && renderRepresentativeSettings()}
+      {activeSection === 'security' && renderSecuritySettings()}
       {activeSection === 'privacy' && renderComingSoonSection('Privacy Settings', 'Control your privacy settings', Eye)}
       {activeSection === 'notifications' && renderComingSoonSection('Notification Settings', 'Manage notification preferences', Bell)}
-      {activeSection === 'security' && renderComingSoonSection('Security Settings', 'Password and security settings', Lock)}
       {activeSection === 'accessibility' && renderComingSoonSection('Accessibility Settings', 'Accessibility and display options', Smartphone)}
       {activeSection === 'about' && renderComingSoonSection('About', 'App version and support', HelpCircle)}
     </div>
