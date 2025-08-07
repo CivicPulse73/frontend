@@ -123,6 +123,18 @@ class ApiClient {
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
+          
+          // Log detailed error for development, especially for 422 validation errors
+          if (import.meta.env.DEV && response.status === 422) {
+            console.error(`🔍 422 Validation Error Details:`, {
+              status: response.status,
+              endpoint,
+              method: config.method,
+              requestData: config.body ? JSON.parse(config.body as string) : null,
+              errorData
+            })
+          }
+          
           // Handle backend APIResponse error format
           const errorMessage = errorData.message || errorData.detail || errorData.error || `HTTP ${response.status}: ${response.statusText}`
           

@@ -9,6 +9,7 @@ interface FollowButtonProps {
   showIcon?: boolean
   size?: 'sm' | 'md' | 'lg'
   variant?: 'primary' | 'secondary' | 'outline'
+  context?: 'feed' | 'profile' // New prop to determine behavior
   onFollowChange?: (isFollowing: boolean, mutual: boolean) => void
 }
 
@@ -18,6 +19,7 @@ export default function FollowButton({
   showIcon = true,
   size = 'md',
   variant = 'primary',
+  context = 'profile', // Default to profile behavior for backward compatibility
   onFollowChange
 }: FollowButtonProps) {
   const { user: currentUser } = useUser()
@@ -25,6 +27,7 @@ export default function FollowButton({
   const [isMutual, setIsMutual] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckingStatus, setIsCheckingStatus] = useState(true)
+  const [wasInitiallyFollowing, setWasInitiallyFollowing] = useState(false) // Track initial state
 
   // Don't show follow button for own profile
   if (!currentUser || currentUser.id === userId) {
@@ -39,6 +42,7 @@ export default function FollowButton({
         const status = await followService.getFollowStatus(userId)
         setIsFollowing(status.is_following)
         setIsMutual(status.mutual)
+        setWasInitiallyFollowing(status.is_following) // Remember initial state
       } catch (error) {
         console.error('Failed to check follow status:', error)
       } finally {
@@ -55,22 +59,26 @@ export default function FollowButton({
     try {
       setIsLoading(true)
       
-      let response
       if (isFollowing) {
-        response = await followService.unfollowUser(userId)
+        // Unfollow user
+        await followService.unfollowUser(userId)
         setIsFollowing(false)
         setIsMutual(false)
+        
+        // Notify parent component of the change
+        onFollowChange?.(false, false)
       } else {
-        response = await followService.followUser(userId)
+        // Follow user
+        const response = await followService.followUser(userId)
         setIsFollowing(true)
         setIsMutual(response.mutual)
+        
+        // Notify parent component of the change
+        onFollowChange?.(true, response.mutual || false)
       }
       
-      // Notify parent component of the change
-      onFollowChange?.(isFollowing ? false : true, response.mutual || false)
-      
     } catch (error) {
-      console.error('Failed to toggle follow:', error)
+      console.error('Failed to toggle follow status:', error)
       // You might want to show a toast notification here
     } finally {
       setIsLoading(false)
@@ -87,18 +95,29 @@ export default function FollowButton({
   // Variant classes
   const getVariantClasses = () => {
     if (isFollowing) {
-      return 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
-    }
-    
-    switch (variant) {
-      case 'primary':
-        return 'bg-blue-500 text-white border border-blue-500 hover:bg-blue-600'
-      case 'secondary':
-        return 'bg-gray-500 text-white border border-gray-500 hover:bg-gray-600'
-      case 'outline':
-        return 'bg-white text-blue-500 border border-blue-500 hover:bg-blue-50'
-      default:
-        return 'bg-blue-500 text-white border border-blue-500 hover:bg-blue-600'
+      // When following, show as secondary style
+      switch (variant) {
+        case 'primary':
+          return 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+        case 'secondary':
+          return 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+        case 'outline':
+          return 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+        default:
+          return 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+      }
+    } else {
+      // When not following, show as primary style
+      switch (variant) {
+        case 'primary':
+          return 'bg-blue-500 text-white border border-blue-500 hover:bg-blue-600'
+        case 'secondary':
+          return 'bg-gray-500 text-white border border-gray-500 hover:bg-gray-600'
+        case 'outline':
+          return 'bg-white text-blue-500 border border-blue-500 hover:bg-blue-50'
+        default:
+          return 'bg-blue-500 text-white border border-blue-500 hover:bg-blue-600'
+      }
     }
   }
 
@@ -111,22 +130,25 @@ export default function FollowButton({
     )
   }
 
-  const buttonText = isFollowing 
-    ? (isMutual ? 'Following' : 'Following') 
-    : 'Follow'
+  // For profile context: Always show button (both follow and unfollow)
+  // For feed context: Hide button if already following when page loads
+  if (context === 'feed' && wasInitiallyFollowing) {
+    return null
+  }
 
+  const buttonText = isFollowing ? 'Following' : 'Follow'
   const Icon = isFollowing ? UserMinus : UserPlus
 
   return (
     <button
       onClick={handleFollowToggle}
-      disabled={isLoading}
+      disabled={isLoading} // Only disable when loading
       className={`
         inline-flex items-center justify-center space-x-2 rounded-lg font-medium
         transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
         ${sizeClasses[size]} ${getVariantClasses()} ${className}
       `}
-      title={isFollowing ? 'Unfollow' : 'Follow'}
+      title={isFollowing ? 'Click to unfollow' : 'Follow'}
     >
       {isLoading ? (
         <Loader2 className="w-4 h-4 animate-spin" />
@@ -134,9 +156,6 @@ export default function FollowButton({
         <>
           {showIcon && <Icon className="w-4 h-4" />}
           <span>{buttonText}</span>
-          {isMutual && isFollowing && (
-            <span className="ml-1 text-xs opacity-75">• Mutual</span>
-          )}
         </>
       )}
     </button>
