@@ -81,8 +81,8 @@ function App() {
       }}
     >
       <UserProvider>
-        <PostProvider>
-          <NotificationProvider>
+        <NotificationProvider>
+          <PostProvider>
             <Router>
               <Suspense fallback={<LoadingSpinner />}>
                 <AnimatePresence mode="wait">
@@ -108,8 +108,8 @@ function App() {
                 </AnimatePresence>
               </Suspense>
             </Router>
-          </NotificationProvider>
-        </PostProvider>
+          </PostProvider>
+        </NotificationProvider>
       </UserProvider>
     </ErrorBoundary>
   )
