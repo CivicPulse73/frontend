@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
-import { CivicPost, User } from '../types'
+import { CivicPost, User, Comment } from '../types'
 import { postsService, PostFilters, CreatePostRequest } from '../services/posts'
 import { commentsService } from '../services/comments'
 
@@ -15,7 +15,7 @@ interface PostContextType {
   toggleDownvote: (postId: string) => Promise<void>
   toggleSave: (postId: string) => Promise<void>
   updateAssignee: (postId: string, assigneeId: string | null) => Promise<void>
-  addComment: (postId: string, content: string, user: User) => Promise<void>
+  addComment: (postId: string, content: string, user: User, parentId?: string) => Promise<Comment>
   loadPosts: (filters?: PostFilters, reset?: boolean) => Promise<void>
   loadMore: () => Promise<void>
   refreshPosts: () => Promise<void>
@@ -198,22 +198,40 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const addComment = async (postId: string, content: string, user: User) => {
+  const addComment = async (postId: string, content: string, user: User, parentId?: string) => {
     try {
+      console.log('🔥 PostContext.addComment called:', { postId, content, parentId, user: user?.username })
+      
+      // Validate inputs
+      if (!postId) {
+        throw new Error('postId is required')
+      }
+      if (!content || !content.trim()) {
+        throw new Error('content is required')
+      }
+      
       // Create comment via API
-      await commentsService.createComment({
-        content,
-        post_id: postId
+      const result = await commentsService.createComment({
+        content: content.trim(),
+        post_id: postId,
+        parent_id: parentId // Add support for replies
       })
       
-      // Update post comment count
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, comment_count: post.comment_count + 1 }
-          : post
-      ))
+      console.log('✅ Comment created via API:', result)
+      
+      // Update post comment count (only for top-level comments)
+      if (!parentId) {
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, comment_count: post.comment_count + 1 }
+            : post
+        ))
+      }
+      
+      console.log('✅ Post comment count updated')
+      return result // Return the created comment
     } catch (err) {
-      console.error('Failed to add comment:', err)
+      console.error('❌ Failed to add comment in PostContext:', err)
       throw err
     }
   }

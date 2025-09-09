@@ -1,6 +1,6 @@
 import { apiClient, ApiResponse } from './api'
 import { BASE_URL } from '../config/api'
-import { User, CivicPost } from '../types'
+import { User, CivicPost, AccountStatsRequest, AccountStatsResponse, UserStats as LegacyUserStats } from '../types'
 
 export interface UpdateUserRequest {
   username?: string
@@ -27,13 +27,13 @@ export interface UserStats {
   total_views: number
 }
 
-// Simple cache for user data
+// Cache for user data and account stats
 let userCache: User | null = null
 let userCacheExpiry: number = 0
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes cache duration
 
-// Cache for user stats
-let userStatsCache: Map<string, { stats: UserStats, expiry: number }> = new Map()
+// Cache for new account stats
+let accountStatsCache: Map<string, { stats: AccountStatsResponse['data'], expiry: number }> = new Map()
 const STATS_CACHE_DURATION = 2 * 60 * 1000 // 2 minutes cache for stats
 
 export const userService = {
@@ -128,35 +128,58 @@ export const userService = {
     return response.data
   },
 
-  async getUserStats(id: string): Promise<UserStats> {
-    console.log('📊 getUserStats called for user:', id, 'Stack:', new Error().stack?.split('\n')[2])
+
+
+  // NEW: Get account stats with new API structure
+  async getAccountStats(request: AccountStatsRequest): Promise<AccountStatsResponse> {
+    console.log('📊 getAccountStats called with request:', request)
+    
+    const cacheKey = `${request.account_ids.join(',')}-${request.representative_account ? 'rep' : 'citizen'}`
+    console.log('🔑 Cache key:', cacheKey)
     
     // Check cache first
-    const cachedStats = userStatsCache.get(id)
+    const cachedStats = accountStatsCache.get(cacheKey)
     if (cachedStats && Date.now() < cachedStats.expiry) {
-      console.log('✅ Returning cached stats for user:', id)
-      return cachedStats.stats
+      console.log('✅ Returning cached account stats for:', cacheKey)
+      return {
+        success: true,
+        message: 'Account statistics retrieved from cache',
+        data: cachedStats.stats,
+        errors: null
+      }
     }
-    
-    const response = await apiClient.get<ApiResponse<UserStats>>(`/users/${id}/stats`)
-    if (!response.success || !response.data) {
-      throw new Error(response.message || 'Failed to get user statistics')
-    }
-    
-    // Cache the result
-    userStatsCache.set(id, {
-      stats: response.data,
-      expiry: Date.now() + STATS_CACHE_DURATION
-    })
-    
-    return response.data
-  },
 
-  // Clear cache when user logs out
+    console.log('🌐 Making POST request to /accounts/stats')
+    console.log('📤 Request payload:', JSON.stringify(request, null, 2))
+    
+    try {
+      const response = await apiClient.post<AccountStatsResponse>('/accounts/stats', request)
+      console.log('📥 Raw API response:', response)
+      
+      if (!response.success || !response.data) {
+        console.error('❌ API response indicates failure:', response)
+        throw new Error(response.message || 'Failed to get account statistics')
+      }
+
+      console.log('✅ Successful API response data:', response.data)
+      
+      // Cache the result
+      accountStatsCache.set(cacheKey, {
+        stats: response.data,
+        expiry: Date.now() + STATS_CACHE_DURATION
+      })
+      console.log('💾 Cached stats with key:', cacheKey)
+
+      return response
+    } catch (error) {
+      console.error('❌ Error in getAccountStats:', error)
+      throw error
+    }
+  },  // Clear cache when user logs out
   clearCache(): void {
     userCache = null
     userCacheExpiry = 0
-    userStatsCache.clear() // Clear stats cache too
+    accountStatsCache.clear() // Clear account stats cache
     localStorage.removeItem('current_user')
     localStorage.removeItem('current_user_expiry')
   },

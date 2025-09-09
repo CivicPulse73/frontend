@@ -2,9 +2,9 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../contexts/UserContext'
 import { usePosts } from '../contexts/PostContext'
-import { userService, UserStats } from '../services/users'
+import { userService } from '../services/users'
 import { postsService } from '../services/posts'
-import { CivicPost, RepresentativeAccount } from '../types'
+import { CivicPost, RepresentativeAccount, AccountStatsRequest, AccountStatsResponse } from '../types'
 import { Edit, Bookmark, MessageCircle, TrendingUp, Calendar, MapPin, Eye, Heart, Share2, Filter, Grid, List, MoreHorizontal, Camera, ChevronRight, LogIn, UserCheck } from 'lucide-react'
 import { Crown, Settings } from '../components/Icons'
 import Avatar from '../components/Avatar'
@@ -15,6 +15,8 @@ import RepresentativeAccountTags from '../components/RepresentativeAccountTags'
 import FollowStats from '../components/FollowStats'
 import FollowModal from '../components/FollowModal'
 import { TicketStatus } from '../components/UI/TicketStatus'
+import VotingButton from '../components/VotingButton'
+import GraphButton from '../components/GraphButton'
 
 export default function Profile() {
   const { user, loading, refreshUser } = useUser()
@@ -35,8 +37,9 @@ export default function Profile() {
   const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [avatarCacheBuster, setAvatarCacheBuster] = useState(0)
   const [freshUserData, setFreshUserData] = useState<any>(null)
-  const [userStats, setUserStats] = useState<UserStats | null>(null)
+  const [userStats, setUserStats] = useState<AccountStatsResponse['data'] | null>(null)
   const [userStatsLoading, setUserStatsLoading] = useState(false)
+  const [voteStats, setVoteStats] = useState({ count: 0, isVoted: false })
   const avatarFileInputRef = useRef<HTMLInputElement>(null)
   const coverFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -46,21 +49,38 @@ export default function Profile() {
     try {
       setUserStatsLoading(true)
       console.log('🔍 Loading stats for user:', user.id)
-      const stats = await userService.getUserStats(user.id)
-      setUserStats(stats)
+      
+      // Determine request parameters based on user type
+      let statsRequest: AccountStatsRequest
+      
+      if (user.rep_accounts && user.rep_accounts.length > 0) {
+        // User has representative accounts - use representative stats
+        statsRequest = {
+          account_ids: user.rep_accounts.map(rep => rep.id),
+          representative_account: true
+        }
+        console.log('🏛️ Using representative stats for', user.rep_accounts.length, 'accounts')
+      } else {
+        // User does not have representative accounts - use citizen stats
+        statsRequest = {
+          account_ids: [user.id],
+          representative_account: false
+        }
+        console.log('👤 Using citizen stats for user account')
+      }
+      
+      const statsResponse = await userService.getAccountStats(statsRequest)
+      setUserStats(statsResponse.data)
+      console.log('📊 Stats loaded:', statsResponse.data)
+      
     } catch (error) {
       console.error('❌ Failed to load user statistics:', error)
-      // Fallback to calculating from userPosts if API fails
-      setUserStats({
-        posts_count: userPosts.length,
-        comments_received: userPosts.reduce((sum, post) => sum + post.comment_count, 0),
-        upvotes_received: userPosts.reduce((sum, post) => sum + post.upvotes, 0),
-        total_views: userPosts.length * 127 // Mock view count
-      })
+      // Set null on error - we'll handle the fallback in the UI
+      setUserStats(null)
     } finally {
       setUserStatsLoading(false)
     }
-  }, [user?.id, userPosts.length]) // Only re-create if user ID or posts count changes
+  }, [user, userPosts])
 
   useEffect(() => {
     // Only load stats on initial user load, not posts
@@ -233,10 +253,33 @@ export default function Profile() {
   console.log('🔍 Profile render - avatarCacheBuster:', avatarCacheBuster)
 
   const savedPosts = posts.filter(post => post.is_saved)
+  
+  // Helper function to get metric value from the new API structure
+  const getMetricValue = (key: string): number => {
+    if (!userStats?.metrics) return 0
+    const metric = userStats.metrics.find(m => m.key === key)
+    return Number(metric?.value || 0)
+  }
+  
+  // Helper function to format metric values
+  const formatMetricValue = (value: number | string, type?: string): string => {
+    if (typeof value === 'string') return value
+    
+    if (type === 'percentage') {
+      return `${value}%`
+    }
+    
+    // Format numbers
+    if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M'
+    if (value >= 1000) return (value / 1000).toFixed(1) + 'K'
+    return Math.round(value).toString()
+  }
+  
   // Calculate statistics from API data or fallback to client-side calculation
-  const totalUpvotes = userStats?.upvotes_received ?? userPosts.reduce((sum, post) => sum + post.upvotes, 0)
-  const totalComments = userStats?.comments_received ?? userPosts.reduce((sum, post) => sum + post.comment_count, 0)
-  const totalViews = userStats?.total_views ?? (userPosts.length * 127) // Mock view count as fallback
+  const totalUpvotes = userStats ? getMetricValue('upvotes_received') : userPosts.reduce((sum, post) => sum + post.upvotes, 0)
+  const totalComments = userStats ? getMetricValue('comments_received') : userPosts.reduce((sum, post) => sum + post.comment_count, 0)
+  const totalViews = userStats ? getMetricValue('total_views') : (userPosts.length * 127) // Mock view count as fallback
+  const postsCount = userStats ? getMetricValue('posts_count') : userPosts.length
   const joinDate = new Date(2024, 0, 15) // Mock join date
   
   const formatJoinDate = (date: Date) => {
@@ -559,40 +602,118 @@ export default function Profile() {
               {user.bio || "Passionate about making our community better. Let's work together to solve local issues and create positive change! 🏘️✨"}
             </p>
 
-            {/* Follow Stats */}
+            {/* Follow Stats and Action Buttons */}
             <div className="mt-3">
               {user?.id && (
-                <FollowStats
-                  userId={user.id}
-                  onClick={(type) => {
-                    setFollowModalTab(type)
-                    setShowFollowModal(true)
-                  }}
-                  className="justify-center"
-                  size="md"
-                />
+                <div className="flex items-center justify-center space-x-6">
+                  <FollowStats
+                    userId={user.id}
+                    onClick={(type) => {
+                      setFollowModalTab(type)
+                      setShowFollowModal(true)
+                    }}
+                  />
+                  
+                  {/* Separator */}
+                  <div className="w-px h-12 bg-blue-200"></div>
+                  
+                  {/* eVote Button */}
+                  <VotingButton 
+                    userId={user.id}
+                    className="py-2 px-3"
+                  />
+
+                  {/* Separator */}
+                  <div className="w-px h-12 bg-blue-200"></div>
+
+                  {/* eVote Trends Button */}
+                  <GraphButton 
+                    userId={user.id}
+                    className="py-2 px-3"
+                  />
+                </div>
               )}
             </div>
           </div>
 
-          {/* Enhanced Stats Grid */}
+          {/* Dynamic Stats Grid */}
           <div className="grid grid-cols-4 gap-2 mb-4">
-            <div className="text-center p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
-              <div className="text-xl font-bold text-blue-700">{userPosts.length}</div>
-              <div className="text-xs text-blue-600 font-medium">Posts</div>
-            </div>
-            <div className="text-center p-2 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
-              <div className="text-xl font-bold text-green-700">{formatNumber(totalUpvotes)}</div>
-              <div className="text-xs text-green-600 font-medium">Upvotes</div>
-            </div>
-            <div className="text-center p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
-              <div className="text-xl font-bold text-purple-700">{totalComments}</div>
-              <div className="text-xs text-purple-600 font-medium">Comments</div>
-            </div>
-            <div className="text-center p-2 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200">
-              <div className="text-xl font-bold text-orange-700">{formatNumber(totalViews)}</div>
-              <div className="text-xs text-orange-600 font-medium">Views</div>
-            </div>
+            {userStats?.metrics && userStats.metrics.length > 0 ? (
+              // Display API stats dynamically
+              userStats.metrics.map((metric, index) => {
+                // Define color classes for cycling
+                const colorOptions = [
+                  {
+                    bg: 'bg-gradient-to-br from-blue-50 to-blue-100',
+                    border: 'border-blue-200',
+                    value: 'text-blue-700',
+                    label: 'text-blue-600'
+                  },
+                  {
+                    bg: 'bg-gradient-to-br from-green-50 to-green-100',
+                    border: 'border-green-200',
+                    value: 'text-green-700',
+                    label: 'text-green-600'
+                  },
+                  {
+                    bg: 'bg-gradient-to-br from-purple-50 to-purple-100',
+                    border: 'border-purple-200',
+                    value: 'text-purple-700',
+                    label: 'text-purple-600'
+                  },
+                  {
+                    bg: 'bg-gradient-to-br from-orange-50 to-orange-100',
+                    border: 'border-orange-200',
+                    value: 'text-orange-700',
+                    label: 'text-orange-600'
+                  }
+                ]
+                const colors = colorOptions[index % 4]
+                
+                return (
+                  <div key={metric.key} className={`text-center p-2 ${colors.bg} rounded-xl border ${colors.border}`}>
+                    <div className={`text-xl font-bold ${colors.value}`}>
+                      {formatMetricValue(metric.value, metric.type)}
+                    </div>
+                    <div className={`text-xs ${colors.label} font-medium`}>
+                      {metric.label}
+                    </div>
+                  </div>
+                )
+              })
+            ) : (
+              // Fallback display when no stats are available (for backwards compatibility)
+              <>
+                <div className="text-center p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+                  <div className="text-xl font-bold text-blue-700">{postsCount}</div>
+                  <div className="text-xs text-blue-600 font-medium">Posts</div>
+                </div>
+                <div className="text-center p-2 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
+                  <div className="text-xl font-bold text-green-700">{formatNumber(totalUpvotes)}</div>
+                  <div className="text-xs text-green-600 font-medium">Upvotes</div>
+                </div>
+                <div className="text-center p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
+                  <div className="text-xl font-bold text-purple-700">{totalComments}</div>
+                  <div className="text-xs text-purple-600 font-medium">Comments</div>
+                </div>
+                <div className="text-center p-2 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200">
+                  <div className="text-xl font-bold text-orange-700">{formatNumber(totalViews)}</div>
+                  <div className="text-xs text-orange-600 font-medium">Views</div>
+                </div>
+              </>
+            )}
+            
+            {/* Show e-votes for representatives if available */}
+            {userStats?.evotes && (
+              <div className="text-center p-2 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl border border-indigo-200">
+                <div className="text-xl font-bold text-indigo-700">
+                  {formatMetricValue(userStats.evotes.value, userStats.evotes.type)}
+                </div>
+                <div className="text-xs text-indigo-600 font-medium">
+                  {userStats.evotes.label}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -670,7 +791,7 @@ export default function Profile() {
                   ? 'bg-gray-100 text-gray-700' 
                   : 'bg-gray-200 text-gray-600'
               }`}>
-                {userPosts.length}
+                {postsCount}
               </span>
             </button>
             <button

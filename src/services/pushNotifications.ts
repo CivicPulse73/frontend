@@ -179,8 +179,8 @@ class BrowserPushNotificationService {
         badge: options.badge || '/vite.svg',
         tag: options.tag,
         data: options.data,
-        silent: options.silent || false,
-        vibrate: options.vibrate || [200, 100, 200]
+        silent: options.silent || false
+        // vibrate: options.vibrate || [200, 100, 200] // Not supported in NotificationOptions
       });
 
       // Handle notification click
