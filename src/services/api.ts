@@ -46,6 +46,8 @@ class ApiClient {
     } else {
       localStorage.removeItem('civic_access_token')
     }
+    
+
   }
 
   private processQueue(error: Error | null, token: string | null = null) {
@@ -59,17 +61,22 @@ class ApiClient {
     
     this.failedQueue = []
   }
-
+  
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     
+    // Always get the fresh token from localStorage to ensure we have the latest token
+    const currentToken = localStorage.getItem('civic_access_token') || this.token
+    
+
+    
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
-        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+        ...(currentToken && { Authorization: `Bearer ${currentToken}` }),
         ...options.headers,
       },
       ...options,
@@ -90,7 +97,7 @@ class ApiClient {
         clearTimeout(timeoutId)
         
         // Handle token refresh for 401 errors
-        if (response.status === 401 && this.token && !endpoint.includes('/auth/')) {
+        if (response.status === 401 && currentToken && !endpoint.includes('/auth/')) {
           if (this.isRefreshing) {
             // Wait for the current refresh to complete
             return new Promise((resolve, reject) => {
@@ -124,17 +131,6 @@ class ApiClient {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           
-          // Log detailed error for development, especially for 422 validation errors
-          if (import.meta.env.DEV && response.status === 422) {
-            console.error(`🔍 422 Validation Error Details:`, {
-              status: response.status,
-              endpoint,
-              method: config.method,
-              requestData: config.body ? JSON.parse(config.body as string) : null,
-              errorData
-            })
-          }
-          
           // Handle backend APIResponse error format
           const errorMessage = errorData.message || errorData.detail || errorData.error || `HTTP ${response.status}: ${response.statusText}`
           
@@ -154,9 +150,6 @@ class ApiClient {
           
           if (response.status >= 500 && attempt < maxRetries - 1) {
             lastError = new Error(`Server error: ${errorMessage}`)
-            if (import.meta.env.DEV) {
-              console.warn(`Server error on attempt ${attempt + 1}, retrying in ${retryDelay * (attempt + 1)}ms...`)
-            }
             await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)))
             continue // Retry on server errors
           }
@@ -166,11 +159,6 @@ class ApiClient {
 
         const data = await response.json()
         
-        // Log successful requests in development
-        if (import.meta.env.DEV) {
-          console.log(`✅ ${config.method || 'GET'} ${endpoint}`, { data })
-        }
-
         return data
       } catch (error) {
         clearTimeout(timeoutId)
@@ -178,11 +166,6 @@ class ApiClient {
         
         if (lastError.name === 'AbortError') {
           throw new Error('Request timeout - please check your connection')
-        }
-        
-        // Log errors in development
-        if (import.meta.env.DEV) {
-          console.error(`❌ ${config.method || 'GET'} ${endpoint}`, lastError)
         }
         
         // Don't retry on client errors (4xx) except 401
@@ -195,17 +178,11 @@ class ApiClient {
         
         // Retry on network errors
         if (attempt < maxRetries - 1) {
-          if (import.meta.env.DEV) {
-            console.log(`Request failed, retrying... (${attempt + 1}/${maxRetries})`)
-          }
           await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)))
         }
       }
     }
     
-    if (import.meta.env.DEV) {
-      console.error('API Request failed after retries:', lastError)
-    }
     throw lastError || new Error('Request failed after multiple attempts')
   }
 
@@ -214,9 +191,6 @@ class ApiClient {
     if (!refreshToken) return null
 
     try {
-      if (import.meta.env.DEV) {
-        console.log('Attempting token refresh...')
-      }
       const response = await fetch(`${this.baseURL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -225,27 +199,16 @@ class ApiClient {
 
       if (response.ok) {
         const data = await response.json()
-        if (import.meta.env.DEV) {
-          console.log('Token refresh successful')
-        }
         this.setToken(data.access_token)
         localStorage.setItem('civic_refresh_token', data.refresh_token)
         return data.access_token
       } else {
-        if (import.meta.env.DEV) {
-          console.log('Token refresh failed with status:', response.status)
-        }
       }
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Token refresh failed:', error)
-      }
+      // Token refresh failed
     }
 
     // If refresh fails, clear tokens
-    if (import.meta.env.DEV) {
-      console.log('Clearing tokens due to refresh failure')
-    }
     this.setToken(null)
     localStorage.removeItem('civic_refresh_token')
     

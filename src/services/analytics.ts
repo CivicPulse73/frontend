@@ -1,4 +1,5 @@
 import { apiClient } from './api'
+import { ActivityData } from '../types'
 
 export interface AnalyticsSummary {
   total_posts: number
@@ -50,5 +51,34 @@ export const analyticsService = {
 
   async getAreaAnalytics(area: string): Promise<AreaAnalytics> {
     return apiClient.get<AreaAnalytics>(`/analytics/areas/${encodeURIComponent(area)}`)
+  },
+
+  async getUserActivityGraph(userId: string, days: number = 30): Promise<ActivityData[]> {
+    try {
+      return await apiClient.get<ActivityData[]>(`/users/${userId}/activity?days=${days}`)
+    } catch (error) {
+      console.error('Error getting activity data:', error)
+      // Generate mock data for the last 30 days
+      return this.generateMockActivityData(days)
+    }
+  },
+
+  generateMockActivityData(days: number): ActivityData[] {
+    const data: ActivityData[] = []
+    const today = new Date()
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+      
+      data.push({
+        date: date.toISOString().split('T')[0],
+        posts: Math.floor(Math.random() * 5),
+        votes: Math.floor(Math.random() * 15),
+        comments: Math.floor(Math.random() * 10)
+      })
+    }
+
+    return data
   }
 }

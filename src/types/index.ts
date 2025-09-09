@@ -260,3 +260,102 @@ export interface PaginatedResponse<T> {
   size: number
   has_more: boolean
 }
+
+export interface VoteStats {
+  vote_count: number
+  is_voted: boolean
+}
+
+export interface VoteResponse {
+  success: boolean
+  vote_count: number
+  is_voted: boolean
+}
+
+export interface ActivityData {
+  date: string
+  posts: number
+  votes: number
+  comments: number
+}
+
+// eVote API Response Types
+export interface RepresentativeEVoteResponse {
+  success: boolean
+  message: string
+  has_evoted: boolean
+  total_evotes: number
+}
+
+export interface RepresentativeEVoteStatus {
+  has_evoted: boolean
+  evoted_at?: string
+}
+
+export interface RepresentativeEVoteStats {
+  representative_id: string
+  total_evotes: number
+  evote_percentage?: number
+  rank?: number
+}
+
+export interface EVoteTrendData {
+  date: string
+  total_evotes: number
+}
+
+export interface EVoteTrends {
+  representative_id: string
+  period_days: number
+  trends: EVoteTrendData[]
+  current_total: number
+  period_change: number
+}
+
+// Account Stats Types (New API Structure)
+export interface AccountStatsMetric {
+  key: string
+  label: string
+  value: number | string
+  type: 'number' | 'percentage' | 'string'
+}
+
+export interface AccountStatsRequest {
+  account_ids: string[]
+  representative_account: boolean
+}
+
+export interface AccountStatsResponse {
+  success: boolean
+  message: string
+  data: {
+    account_type: 'citizen' | 'representative'
+    account_ids: string[]
+    metrics: AccountStatsMetric[]
+    evotes?: AccountStatsMetric
+  } | null
+  errors: string[] | null
+}
+
+export interface CitizenAccountStats {
+  account_type: 'citizen'
+  account_ids: string[]
+  metrics: AccountStatsMetric[]
+}
+
+export interface RepresentativeAccountStats {
+  account_type: 'representative'
+  account_ids: string[]
+  metrics: AccountStatsMetric[]
+  evotes: AccountStatsMetric
+}
+
+export type AccountStats = CitizenAccountStats | RepresentativeAccountStats
+
+// Legacy UserStats interface (for backward compatibility)
+export interface UserStats {
+  posts_count: number
+  comments_received: number
+  upvotes_received: number
+  total_views: number
+}
