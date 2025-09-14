@@ -86,7 +86,7 @@ class WebSocketSearchService extends SimpleEventEmitter {
   private url: string;
   private token: string | null = null;
 
-  constructor(baseUrl: string = 'ws://localhost:8000') {
+  constructor(baseUrl: string = 'ws://localhost:8001') {
     super();
     this.url = `${baseUrl}/api/v1/ws/search`;
   }
@@ -532,7 +532,7 @@ class WebSocketSearchService extends SimpleEventEmitter {
 
 // Global instance
 export const webSocketSearchService = new WebSocketSearchService(
-  import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+  import.meta.env.VITE_WS_URL || 'ws://localhost:8001'
 );
 
 export default webSocketSearchService;
