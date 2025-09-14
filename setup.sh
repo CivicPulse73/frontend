@@ -23,7 +23,7 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 # Create virtual environment if it doesn't exist
-if [ ! -d "venv" ]; then
+if [ ! -d "../backend/.clearvenv" ]; then
     echo "Creating Python virtual environment..."
     python3 -m venv venv
 fi
