@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Send, Heart, MessageCircle, Share2, MoreVertical, ThumbsUp, ThumbsDown } from 'lucide-react'
@@ -173,7 +173,17 @@ export default function CommentsPage() {
     }
   }
 
-  const toggleCommentVisibility = (commentId: string) => {
+  const handleReplyClick = useCallback((commentId: string) => {
+    setReplyingTo(commentId)
+    setReplyText('') // Clear any existing reply text
+  }, [])
+
+  const cancelReply = useCallback(() => {
+    setReplyingTo(null)
+    setReplyText('')
+  }, [])
+
+  const toggleCommentVisibility = useCallback((commentId: string) => {
     setHiddenComments(prev => {
       const newSet = new Set(prev)
       if (newSet.has(commentId)) {
@@ -183,9 +193,9 @@ export default function CommentsPage() {
       }
       return newSet
     })
-  }
+  }, [])
 
-  const toggleRepliesVisibility = (commentId: string) => {
+  const toggleRepliesVisibility = useCallback((commentId: string) => {
     setExpandedReplies(prev => {
       const newSet = new Set(prev)
       if (newSet.has(commentId)) {
@@ -195,20 +205,19 @@ export default function CommentsPage() {
       }
       return newSet
     })
-  }
+  }, [])
 
-  const handleReplyClick = (commentId: string) => {
-    setReplyingTo(commentId)
-    // Focus the reply textarea after a brief delay to ensure it's rendered
-    setTimeout(() => {
-      replyTextareaRef.current?.focus()
-    }, 100)
-  }
+  // Add useEffect to handle reply textarea focus
+  useEffect(() => {
+    if (replyingTo && replyTextareaRef.current) {
+      replyTextareaRef.current.focus()
+    }
+  }, [replyingTo])
 
-  const cancelReply = () => {
-    setReplyingTo(null)
-    setReplyText('')
-  }
+  const handleReplyTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value
+    setReplyText(newValue)
+  }, [])
 
   // Group comments by parent_id to build threaded structure
   const organizeComments = (comments: Comment[]): Comment[] => {
@@ -223,8 +232,8 @@ export default function CommentsPage() {
     return topLevel
   }
 
-  // Component for rendering individual comments
-  const CommentItem = ({ comment, level = 0 }: { comment: Comment; level?: number }) => {
+  // Component for rendering individual comments - memoized to prevent unnecessary re-renders
+  const CommentItem = memo(({ comment, level = 0 }: { comment: Comment; level?: number }) => {
     const isHidden = hiddenComments.has(comment.id)
     const hasReplies = comment.replies && comment.replies.length > 0
     const repliesExpanded = expandedReplies.has(comment.id)
@@ -304,7 +313,7 @@ export default function CommentsPage() {
 
             {/* Reply Form */}
             {showingReplyForm && (
-              <div className="mt-3 bg-gray-50 rounded-lg p-3">
+              <div key={`reply-form-${comment.id}`} className="mt-3 bg-gray-50 rounded-lg p-3">
                 <div className="flex space-x-2 mb-2">
                   <Avatar
                     src={user?.avatar_url}
@@ -317,12 +326,14 @@ export default function CommentsPage() {
                   </span>
                 </div>
                 <textarea
+                  key={`reply-${comment.id}`}
                   ref={replyTextareaRef}
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
+                  value={replyText || ''}
+                  onChange={handleReplyTextChange}
                   placeholder="Write a reply..."
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   rows={2}
+                  autoFocus
                 />
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex space-x-2">
@@ -361,7 +372,7 @@ export default function CommentsPage() {
         )}
       </div>
     )
-  }
+  })
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setCommentText(e.target.value)

@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // Proxy API requests to backend during development
         '/api': {
-          target: env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:8000',
+          target: env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:8001',
           changeOrigin: true,
           secure: false,
         }
