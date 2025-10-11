@@ -197,7 +197,19 @@ export interface Notification {
   post_id?: string
   comment_id?: string
   triggered_by_user_id?: string
-  notification_type: 'issue_update' | 'comment' | 'vote' | 'assignment' | 'resolution' | 'mention' | 'follow'  // Match backend enum
+  notification_type:
+    | 'issue_update'
+    | 'comment'
+    | 'vote'
+    | 'assignment'
+    | 'resolution'
+    | 'mention'
+    | 'follow'
+    | 'notification'
+    | 'alert'
+    | 'update'
+    | 'custom'
+    | string  // Allow backend-defined custom types
   title: string
   message: string
   action_url?: string
