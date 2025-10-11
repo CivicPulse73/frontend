@@ -74,13 +74,30 @@ class WebSocketConfigService {
 
   private loadConfigFromEnvironment() {
     // Load from environment variables or local storage
+    const env = (import.meta as any).env || {};
+    const readFlag = (primaryKey: string, fallbackKey?: string, defaultValue = true) => {
+      const rawPrimary = env[primaryKey];
+      if (typeof rawPrimary === 'string') {
+        return rawPrimary !== 'false';
+      }
+
+      if (fallbackKey) {
+        const rawFallback = env[fallbackKey];
+        if (typeof rawFallback === 'string') {
+          return rawFallback !== 'false';
+        }
+      }
+
+      return defaultValue;
+    };
+
     const envConfig = {
-      enabled: import.meta.env.VITE_WEBSOCKET_ENABLED !== 'false',
-      mode: (import.meta.env.VITE_WEBSOCKET_MODE as any) || 'enabled',
+      enabled: readFlag('VITE_WEBSOCKET_ENABLED', 'VITE_WS_ENABLED'),
+      mode: (env.VITE_WEBSOCKET_MODE as any) || env.VITE_WS_MODE || 'enabled',
       features: {
-        search: import.meta.env.VITE_WS_SEARCH !== 'false',
-        analytics: import.meta.env.VITE_WS_ANALYTICS !== 'false',
-        notifications: import.meta.env.VITE_WS_NOTIFICATIONS !== 'false',
+        search: readFlag('VITE_WS_SEARCH', 'VITE_WEBSOCKET_SEARCH_ENABLED', false),
+        analytics: readFlag('VITE_WS_ANALYTICS', 'VITE_WEBSOCKET_ANALYTICS_ENABLED', false),
+        notifications: readFlag('VITE_WS_NOTIFICATIONS', 'VITE_WEBSOCKET_NOTIFICATIONS_ENABLED'),
       },
     };
 
