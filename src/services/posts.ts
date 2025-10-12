@@ -167,7 +167,7 @@ export const postsService = {
   },
 
   async upvotePost(postId: string): Promise<{ upvotes: number; downvotes: number; is_upvoted: boolean; is_downvoted: boolean }> {
-    const response = await apiClient.post<ApiResponse<any>>(`/posts/${postId}/vote?vote_type=up`)
+    const response = await apiClient.post<ApiResponse<any>>(`/posts/${postId}/vote?vote_type=upvote`)
     if (response.success && response.data) {
       // Map backend response to frontend format
       const data = response.data
@@ -182,7 +182,7 @@ export const postsService = {
   },
 
   async downvotePost(postId: string): Promise<{ upvotes: number; downvotes: number; is_upvoted: boolean; is_downvoted: boolean }> {
-    const response = await apiClient.post<ApiResponse<any>>(`/posts/${postId}/vote?vote_type=down`)
+    const response = await apiClient.post<ApiResponse<any>>(`/posts/${postId}/vote?vote_type=downvote`)
     if (response.success && response.data) {
       // Map backend response to frontend format
       const data = response.data

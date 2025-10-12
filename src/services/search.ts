@@ -52,18 +52,21 @@ export class SearchService {
           'location': 'representatives'
         }
         params.append('entity_types', entityTypeMap[filters.type])
+        console.log('Searching for type:', filters.type, '-> entity_types:', entityTypeMap[filters.type])
       } else {
-        // For "All" searches, try searching for posts first
-        // Note: Backend has issues with multi-entity searches, so we'll search posts primarily
-        params.append('entity_types', 'posts')
+        // For "All" searches, search across all entity types
+        params.append('entity_types', 'users,posts,representatives')
+        console.log('Searching all entity types: users,posts,representatives')
       }
 
+      console.log('Search request URL:', `/search/?${params}`)
       const response = await apiClient.get(`/search/?${params}`) as BackendSearchResponse
+      console.log('Search response:', response)
       return this.convertBackendResponse(response, filters?.type)
     } catch (error) {
       console.error('Search failed:', error)
-      // Return mock data for development
-      return this.getMockSearchResults(query, filters)
+      // Re-throw the error so the UI can handle it properly
+      throw new Error(error instanceof Error ? error.message : 'Failed to perform search. Please try again.')
     }
   }
 
@@ -75,8 +78,12 @@ export class SearchService {
     // Convert posts
     if (backendResponse.results.posts) {
       backendResponse.results.posts.forEach(post => {
+        if (!post.id) {
+          console.warn('Post without ID found:', post)
+          return
+        }
         results.push({
-          id: post.id,
+          id: String(post.id), // Ensure ID is always a string
           type: 'post',
           title: post.title || 'Untitled Post',
           description: post.content || post.description || '',
@@ -96,8 +103,12 @@ export class SearchService {
     // Convert users
     if (backendResponse.results.users) {
       backendResponse.results.users.forEach(user => {
+        if (!user.id) {
+          console.warn('User without ID found:', user)
+          return
+        }
         results.push({
-          id: user.id,
+          id: String(user.id), // Ensure ID is always a string
           type: 'user',
           title: user.display_name || user.username || 'Unknown User',
           description: user.bio || `User: ${user.username}`,
@@ -117,8 +128,12 @@ export class SearchService {
     // Convert representatives
     if (backendResponse.results.representatives) {
       backendResponse.results.representatives.forEach(rep => {
+        if (!rep.id) {
+          console.warn('Representative without ID found:', rep)
+          return
+        }
         results.push({
-          id: rep.id,
+          id: String(rep.id), // Ensure ID is always a string
           type: 'location',
           title: rep.name || 'Unknown Representative',
           description: `${rep.title || 'Representative'} - ${rep.constituency || 'Unknown Constituency'}`,

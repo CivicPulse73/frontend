@@ -49,16 +49,22 @@ export default function SearchPage() {
   }
 
   const handleResultClick = (result: SearchResult) => {
+    console.log('Navigating to result:', result)
     switch (result.type) {
       case 'post':
+        console.log('Navigating to post:', result.id)
         navigate(`/post/${result.id}`)
         break
       case 'user':
+        console.log('Navigating to profile:', result.id)
         navigate(`/profile/${result.id}`)
         break
       case 'location':
+        console.log('Navigating to representative:', result.id)
         navigate(`/representative/${result.id}`)
         break
+      default:
+        console.error('Unknown result type:', result.type)
     }
   }
 
@@ -68,6 +74,9 @@ export default function SearchPage() {
       <div 
         key={result.id} 
         onClick={() => handleResultClick(result)}
+        onKeyPress={(e) => e.key === 'Enter' && handleResultClick(result)}
+        role="button"
+        tabIndex={0}
         className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-lg hover:border-blue-300 transition-all cursor-pointer group"
       >
         <div className="flex items-start gap-4">
@@ -133,6 +142,9 @@ export default function SearchPage() {
       <div 
         key={result.id} 
         onClick={() => handleResultClick(result)}
+        onKeyPress={(e) => e.key === 'Enter' && handleResultClick(result)}
+        role="button"
+        tabIndex={0}
         className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-lg hover:border-green-300 transition-all cursor-pointer group"
       >
         <div className="flex items-start gap-4">
@@ -188,6 +200,9 @@ export default function SearchPage() {
       <div 
         key={result.id} 
         onClick={() => handleResultClick(result)}
+        onKeyPress={(e) => e.key === 'Enter' && handleResultClick(result)}
+        role="button"
+        tabIndex={0}
         className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-lg hover:border-purple-300 transition-all cursor-pointer group"
       >
         <div className="flex items-start gap-4">
@@ -316,7 +331,23 @@ export default function SearchPage() {
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <p className="text-red-600">Error: {error}</p>
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-red-800">Search Error</h3>
+                  <p className="text-sm text-red-700 mt-1">{error}</p>
+                  <button 
+                    onClick={() => search(query, activeFilter === 'all' ? undefined : { type: activeFilter as 'post' | 'user' | 'location' })}
+                    className="mt-2 text-sm font-medium text-red-600 hover:text-red-500"
+                  >
+                    Try again
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

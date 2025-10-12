@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { BACKEND_URL } from '../config/api';
 
 export interface WebSocketConfig {
   enabled: boolean;
@@ -40,6 +41,8 @@ class WebSocketConfigService {
     this.config = this.getDefaultConfig();
     this.fallbackConfig = this.getDefaultFallbackConfig();
     this.loadConfigFromEnvironment();
+    // Fetch config from backend on initialization
+    this.fetchBackendConfig();
   }
 
   private getDefaultConfig(): WebSocketConfig {
@@ -124,6 +127,46 @@ class WebSocketConfigService {
       localStorage.setItem('civicpulse_websocket_config', JSON.stringify(this.config));
     } catch (error) {
       console.warn('Failed to save WebSocket config to localStorage:', error);
+    }
+  }
+
+  /**
+   * Fetch WebSocket configuration from the backend API.
+   * This ensures the frontend respects the backend's WebSocket settings.
+   */
+  private async fetchBackendConfig(): Promise<void> {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/v1/config/websocket`);
+      if (!response.ok) {
+        console.warn('Failed to fetch backend WebSocket config, using defaults');
+        return;
+      }
+      
+      const backendConfig = await response.json();
+      
+      // Update config with backend settings
+      this.config.enabled = backendConfig.enabled;
+      this.config.mode = backendConfig.mode;
+      
+      // Update feature flags from backend
+      if (backendConfig.features) {
+        this.config.features.notifications = backendConfig.features.notifications;
+        this.config.features.analytics = backendConfig.features.analytics;
+        this.config.features.search = backendConfig.features.search;
+      }
+      
+      // Notify listeners of the updated config
+      this.notifyListeners();
+      
+      console.debug('[WebSocketConfig] Loaded backend config:', { 
+        enabled: this.config.enabled,
+        mode: this.config.mode,
+        features: this.config.features
+      });
+      
+    } catch (error) {
+      console.warn('Error fetching backend WebSocket config:', error);
+      // Continue with defaults if backend is unreachable
     }
   }
 
