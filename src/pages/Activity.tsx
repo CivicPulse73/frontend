@@ -1,12 +1,12 @@
-import { useState } from 'react'
-import { Bell, CheckCircle, MessageCircle, ArrowUp, Clock, User, RefreshCw, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Bell, CheckCircle, MessageCircle, ArrowUp, Clock, User, RefreshCw, AlertCircle, ClipboardList, Vote, Settings } from 'lucide-react'
 import { useNotifications } from '../contexts/NotificationContext'
 import { usePosts } from '../contexts/PostContext'
 import { useNavigate } from 'react-router-dom'
 import NotificationModal from '../components/NotificationModal'
 import { Notification } from '../types'
 
-type ActivityFilter = 'all' | 'unread' | 'status_update' | 'comment' | 'upvote' | 'mention'
+type ActivityFilter = 'all' | 'unread' | 'assignments' | 'votes' | 'mentions' | 'system'
 
 export default function Activity() {
   const { notifications, unreadCount, loading, error, markAsRead, markAllAsRead, refresh } = useNotifications()
@@ -30,10 +30,10 @@ export default function Activity() {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'status_update': return <CheckCircle className="w-5 h-5 text-blue-600" />
-      case 'comment': return <MessageCircle className="w-5 h-5 text-green-600" />
-      case 'upvote': return <ArrowUp className="w-5 h-5 text-purple-600" />
-      case 'mention': return <User className="w-5 h-5 text-yellow-600" />
+      case 'assignments': return <ClipboardList className="w-5 h-5 text-orange-600" />
+      case 'votes': return <Vote className="w-5 h-5 text-indigo-600" />
+      case 'mentions': return <User className="w-5 h-5 text-yellow-600" />
+      case 'system': return <Settings className="w-5 h-5 text-red-600" />
       default: return <Clock className="w-5 h-5 text-gray-600" />
     }
   }
@@ -42,10 +42,10 @@ export default function Activity() {
     if (read) return 'bg-white border-gray-200'
     
     switch (type) {
-      case 'status_update': return 'bg-blue-50 border-blue-200'
-      case 'comment': return 'bg-green-50 border-green-200'
-      case 'upvote': return 'bg-purple-50 border-purple-200'
-      case 'mention': return 'bg-yellow-50 border-yellow-200'
+      case 'assignments': return 'bg-orange-50 border-orange-200'
+      case 'votes': return 'bg-indigo-50 border-indigo-200'
+      case 'mentions': return 'bg-yellow-50 border-yellow-200'
+      case 'system': return 'bg-red-50 border-red-200'
       default: return 'bg-gray-50 border-gray-200'
     }
   }
@@ -56,11 +56,22 @@ export default function Activity() {
     return post?.title || 'Unknown Post'
   }
 
-  const filteredNotifications = notifications.filter(notification => {
-    if (activeFilter === 'all') return true
-    if (activeFilter === 'unread') return !notification.read
-    return notification.notification_type === activeFilter
-  })
+  // Fetch notifications when filter changes
+  useEffect(() => {
+    const filters: { read?: boolean; notification_type?: string } = {}
+    
+    if (activeFilter === 'unread') {
+      filters.read = false
+    } else if (activeFilter !== 'all') {
+      filters.notification_type = activeFilter
+    }
+    
+    refresh(filters)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilter])
+
+  // No need for client-side filtering anymore, use notifications directly from API
+  const filteredNotifications = notifications
 
   const handleNotificationClick = (notification: Notification) => {
     // Only mark as read when user explicitly clicks
@@ -89,10 +100,11 @@ export default function Activity() {
   const filterOptions = [
     { label: 'All', value: 'all' as ActivityFilter },
     { label: 'Unread', value: 'unread' as ActivityFilter },
-    { label: 'Updates', value: 'status_update' as ActivityFilter },
-    { label: 'Comments', value: 'comment' as ActivityFilter },
-    { label: 'Upvotes', value: 'upvote' as ActivityFilter },
-    { label: 'Mentions', value: 'mention' as ActivityFilter },
+    { label: 'Assignments', value: 'assignments' as ActivityFilter },
+    // TODO: Assignments should only be for representatives
+    { label: 'Votes', value: 'votes' as ActivityFilter },
+    { label: 'Mentions', value: 'mentions' as ActivityFilter },
+    { label: 'System', value: 'system' as ActivityFilter },
   ]
 
   return (
@@ -222,7 +234,7 @@ export default function Activity() {
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>{formatTimeAgo(new Date(notification.created_at))}</span>
                   <span className="capitalize bg-gray-100 px-2 py-1 rounded-full">
-                    {notification.notification_type.replace('_', ' ')}
+                    {notification.notification_type?.replace('_', ' ') || 'notification'}
                   </span>
                 </div>
               </div>

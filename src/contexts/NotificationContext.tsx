@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react'
 import { Notification } from '../types'
 import { useUser } from './UserContext'
-import { notificationsService } from '../services/notifications'
+import { notificationsService, NotificationFilters } from '../services/notifications'
 import { notificationWebSocketService, WebSocketNotificationEnvelope } from '../services/notificationWebsocket'
 import { ConnectionStatus } from '../services/websocket'
 import { webSocketConfigService, WebSocketConfig } from '../services/webSocketConfig'
@@ -14,7 +14,7 @@ interface NotificationContextType {
   markAsRead: (id: string) => void
   markAllAsRead: () => void
   addNotification: (notification: Omit<Notification, 'id'>) => void
-  refresh: () => Promise<void>
+  refresh: (filters?: NotificationFilters) => Promise<void>
   connectionStatus: ConnectionStatus
   realtimeEnabled: boolean
 }
@@ -42,6 +42,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const [realtimeEnabled, setRealtimeEnabled] = useState<boolean>(
     webSocketConfigService.isFeatureEnabled('notifications')
   )
+  const [unreadCountFromAPI, setUnreadCountFromAPI] = useState<number>(0)
+  const fetchInProgressRef = useRef(false)
+  const fetchTimeoutRef = useRef<number | null>(null)
 
   const mergeNotification = (notification: Notification) => {
     setNotifications(prev => {
@@ -83,24 +86,54 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     mergeNotification(notification)
   }
 
-  // Fetch notifications from API
-  const fetchNotifications = async () => {
+  // Fetch unread count from API
+  const fetchUnreadCount = async () => {
     if (!user) return
+    
+    try {
+      const count = await notificationsService.getUnreadCount()
+      setUnreadCountFromAPI(count)
+    } catch (err) {
+      console.warn('Failed to fetch unread count:', err)
+      // Don't set error state for unread count failure, just log it
+    }
+  }
 
+  // Fetch notifications from API
+  const fetchNotifications = async (filters?: NotificationFilters) => {
+    if (!user) return
+    
+    // If a fetch is in progress, wait for it to complete before starting a new one
+    if (fetchInProgressRef.current) {
+      console.log('Fetch already in progress, waiting...')
+      // Wait a bit and try again
+      await new Promise(resolve => setTimeout(resolve, 100))
+      if (fetchInProgressRef.current) {
+        console.log('Still in progress, skipping...')
+        return
+      }
+    }
+
+    fetchInProgressRef.current = true
     setLoading(true)
     setError(null)
 
     try {
-      const response = await notificationsService.getNotifications({})
-      setNotifications(response.items)
+      const response = await notificationsService.getNotifications(filters || {})
+      // Always update with the latest response, even if it's empty
+      setNotifications(response.items || [])
+      
+      // Also fetch unread count for accuracy
+      await fetchUnreadCount()
     } catch (err) {
-      console.warn('Failed to fetch notifications from API, using fallback data:', err)
+      console.warn('Failed to fetch notifications from API:', err)
       setError('Unable to load notifications')
       
       // Set empty notifications on error
       setNotifications([])
     } finally {
       setLoading(false)
+      fetchInProgressRef.current = false
     }
   }
 
@@ -144,7 +177,10 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
   }, [user, realtimeEnabled])
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  // Use API unread count if available, otherwise calculate from loaded notifications
+  const unreadCount = unreadCountFromAPI > 0 
+    ? unreadCountFromAPI 
+    : notifications.filter(n => !n.read).length
 
   const markAsRead = async (id: string) => {
     // Optimistic update
@@ -156,13 +192,20 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       )
     )
     
+    // Optimistically decrease unread count
+    if (unreadCountFromAPI > 0) {
+      setUnreadCountFromAPI(prev => Math.max(0, prev - 1))
+    }
+    
     // API call to persist the change
     try {
       await notificationsService.markAsRead(id)
+      // Refresh unread count after successful API call
+      await fetchUnreadCount()
     } catch (err) {
       console.error('Failed to mark notification as read:', err)
       
-      // Revert optimistic update on failure
+      // Revert optimistic updates on failure
       setNotifications(prev => 
         prev.map(notification => 
           notification.id === id 
@@ -170,6 +213,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
             : notification
         )
       )
+      
+      // Refresh count to get accurate value
+      await fetchUnreadCount()
     }
   }
 
@@ -178,19 +224,27 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
     // Store current state for potential revert
     const previousNotifications = notifications
+    const previousUnreadCount = unreadCountFromAPI
 
     // Optimistic update
     setNotifications(prev => 
       prev.map(notification => ({ ...notification, read: true }))
     )
+    setUnreadCountFromAPI(0)
     
     try {
       await notificationsService.markAllAsRead()
+      // Refresh unread count after successful API call
+      await fetchUnreadCount()
     } catch (err) {
       console.error('Failed to mark all notifications as read:', err)
       
-      // Revert optimistic update on failure
+      // Revert optimistic updates on failure
       setNotifications(previousNotifications)
+      setUnreadCountFromAPI(previousUnreadCount)
+      
+      // Refresh count to get accurate value
+      await fetchUnreadCount()
     }
   }
 
@@ -202,9 +256,25 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     mergeNotification(notification)
   }
 
-  const refresh = async () => {
-    await fetchNotifications()
+  const refresh = async (filters?: NotificationFilters) => {
+    // Clear any pending debounced calls
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current)
+    }
+    
+    // Immediately call fetchNotifications without debounce for filter changes
+    // The fetchInProgressRef will handle preventing duplicate calls
+    await fetchNotifications(filters)
   }
+  
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current)
+      }
+    }
+  }, [])
 
   return (
     <NotificationContext.Provider 

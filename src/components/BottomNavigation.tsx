@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Home, Plus, Bell, Search, User, Compass } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useNotifications } from '../contexts/NotificationContext'
 
 const navigationItems = [
   { id: 'home', label: 'Home', icon: Home, path: '/' },
@@ -13,6 +14,7 @@ const navigationItems = [
 export default function BottomNavigation() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { unreadCount } = useNotifications()
 
   const handleHomeClick = () => {
     if (location.pathname === '/') {
@@ -69,11 +71,25 @@ export default function BottomNavigation() {
                   />
                 )}
                 
-                <Icon 
-                  className={`w-5 h-5 transition-all duration-200 ${
-                    isActive ? 'scale-110' : ''
-                  }`} 
-                />
+                <div className="relative">
+                  <Icon 
+                    className={`w-5 h-5 transition-all duration-200 ${
+                      isActive ? 'scale-110' : ''
+                    }`} 
+                  />
+                  
+                  {/* Unread count badge for activity */}
+                  {item.id === 'activity' && unreadCount > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1"
+                    >
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </motion.span>
+                  )}
+                </div>
+                
                 <span className={`text-xs font-medium transition-all duration-200 ${
                   isActive ? 'font-semibold' : ''
                 }`}>
