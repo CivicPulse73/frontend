@@ -1,4 +1,4 @@
-import { X, CheckCircle, MessageCircle, ArrowUp, User, Clock } from 'lucide-react'
+import { X, CheckCircle, MessageCircle, ArrowUp, User, Clock, ClipboardList, Vote, Settings } from 'lucide-react'
 import { Notification } from '../types'
 
 interface NotificationModalProps {
@@ -20,20 +20,20 @@ export default function NotificationModal({
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'status_update': return <CheckCircle className="w-8 h-8 text-blue-600" />
-      case 'comment': return <MessageCircle className="w-8 h-8 text-green-600" />
-      case 'upvote': return <ArrowUp className="w-8 h-8 text-purple-600" />
-      case 'mention': return <User className="w-8 h-8 text-yellow-600" />
+      case 'assignments': return <ClipboardList className="w-8 h-8 text-orange-600" />
+      case 'votes': return <Vote className="w-8 h-8 text-indigo-600" />
+      case 'mentions': return <User className="w-8 h-8 text-yellow-600" />
+      case 'system': return <Settings className="w-8 h-8 text-red-600" />
       default: return <Clock className="w-8 h-8 text-gray-600" />
     }
   }
 
   const getNotificationBg = (type: string) => {
     switch (type) {
-      case 'status_update': return 'bg-blue-50'
-      case 'comment': return 'bg-green-50'
-      case 'upvote': return 'bg-purple-50'
-      case 'mention': return 'bg-yellow-50'
+      case 'assignments': return 'bg-orange-50'
+      case 'votes': return 'bg-indigo-50'
+      case 'mentions': return 'bg-yellow-50'
+      case 'system': return 'bg-red-50'
       default: return 'bg-gray-50'
     }
   }

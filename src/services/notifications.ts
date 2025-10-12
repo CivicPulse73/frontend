@@ -5,7 +5,7 @@ export interface NotificationFilters {
   page?: number
   size?: number
   read?: boolean
-  type?: string
+  notification_type?: string
 }
 
 export const notificationsService = {
@@ -24,8 +24,14 @@ export const notificationsService = {
     return await apiClient.get<PaginatedResponse<Notification>>(endpoint)
   },
 
-  async markAsRead(notificationId: string): Promise<void> {
-    const response = await apiClient.put<ApiResponse>(`/notifications/${notificationId}/read`)
+  async markAsRead(notificationId: string | string[]): Promise<void> {
+    // Convert single ID to array for consistency with backend API
+    const notificationIds = Array.isArray(notificationId) ? notificationId : [notificationId]
+    
+    const response = await apiClient.put<ApiResponse>('/notifications/read', {
+      notification_ids: notificationIds
+    })
+    
     if (!response.success) {
       throw new Error(response.error || 'Failed to mark notification as read')
     }
