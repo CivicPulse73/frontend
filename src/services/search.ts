@@ -7,12 +7,14 @@ export interface SearchResult {
   description: string
   imageUrl?: string
   metadata?: Record<string, any>
+  score?: number
 }
 
 export interface SearchResponse {
   results: SearchResult[]
   total: number
   hasMore: boolean
+  searchTime?: number
 }
 
 // Backend response structure
@@ -31,8 +33,98 @@ interface BackendSearchResponse {
   metadata: Record<string, any>
 }
 
+// Elasticsearch response structure
+interface ElasticsearchResponse {
+  query: string
+  total_results: number
+  search_time_ms: number
+  results: {
+    posts?: {
+      total: number
+      items: Array<{
+        id: string
+        score: number
+        source: any
+      }>
+    }
+    users?: {
+      total: number
+      items: Array<{
+        id: string
+        score: number
+        source: any
+      }>
+    }
+  }
+  error?: string
+}
+
 export class SearchService {
+  private useElasticsearch = true // Toggle to use Elasticsearch vs PostgreSQL
+
+  /**
+   * Main search method - uses Elasticsearch for better performance
+   */
   async search(query: string, filters?: {
+    type?: 'post' | 'user' | 'location'
+    limit?: number
+    offset?: number
+  }): Promise<SearchResponse> {
+    // Use Elasticsearch if available, fallback to PostgreSQL
+    if (this.useElasticsearch) {
+      return this.searchElasticsearch(query, filters)
+    } else {
+      return this.searchPostgres(query, filters)
+    }
+  }
+
+  /**
+   * Search using Elasticsearch microservice
+   */
+  async searchElasticsearch(query: string, filters?: {
+    type?: 'post' | 'user' | 'location'
+    limit?: number
+    offset?: number
+  }): Promise<SearchResponse> {
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        limit: (filters?.limit || 20).toString(),
+        offset: (filters?.offset || 0).toString()
+      })
+
+      // Convert frontend 'type' to backend entity types
+      if (filters?.type) {
+        const entityTypeMap = {
+          'post': 'posts',
+          'user': 'users', 
+          'location': 'representatives'
+        }
+        params.append('entity_types', entityTypeMap[filters.type])
+      }
+
+      console.log('Elasticsearch search request:', `/search/elasticsearch?${params}`)
+      const response = await apiClient.get(`/search/elasticsearch?${params}`) as ElasticsearchResponse
+      
+      // If search service is unavailable, fallback to PostgreSQL
+      if (response.error) {
+        console.warn('Elasticsearch unavailable, falling back to PostgreSQL search')
+        return this.searchPostgres(query, filters)
+      }
+      
+      console.log('Elasticsearch search response:', response)
+      return this.convertElasticsearchResponse(response)
+    } catch (error) {
+      console.error('Elasticsearch search failed, falling back:', error)
+      // Fallback to PostgreSQL search
+      return this.searchPostgres(query, filters)
+    }
+  }
+
+  /**
+   * Search using PostgreSQL (fallback)
+   */
+  async searchPostgres(query: string, filters?: {
     type?: 'post' | 'user' | 'location'
     limit?: number
     offset?: number
@@ -59,14 +151,77 @@ export class SearchService {
         console.log('Searching all entity types: users,posts,representatives')
       }
 
-      console.log('Search request URL:', `/search/?${params}`)
+      console.log('PostgreSQL search request URL:', `/search/?${params}`)
       const response = await apiClient.get(`/search/?${params}`) as BackendSearchResponse
-      console.log('Search response:', response)
+      console.log('PostgreSQL search response:', response)
       return this.convertBackendResponse(response, filters?.type)
     } catch (error) {
       console.error('Search failed:', error)
       // Re-throw the error so the UI can handle it properly
       throw new Error(error instanceof Error ? error.message : 'Failed to perform search. Please try again.')
+    }
+  }
+
+  /**
+   * Convert Elasticsearch response to SearchResponse format
+   */
+  private convertElasticsearchResponse(esResponse: ElasticsearchResponse): SearchResponse {
+    const results: SearchResult[] = []
+    let total = esResponse.total_results
+
+    // Convert posts from Elasticsearch
+    if (esResponse.results.posts?.items) {
+      esResponse.results.posts.items.forEach(item => {
+        const post = item.source
+        results.push({
+          id: String(post.id),
+          type: 'post',
+          title: post.title || 'Untitled Post',
+          description: post.content || '',
+          imageUrl: post.media_urls?.[0],
+          score: item.score,
+          metadata: {
+            location: post.location,
+            city: post.city,
+            state: post.state,
+            status: post.status,
+            post_type: post.post_type,
+            category: post.category,
+            tags: post.tags,
+            visibility: post.visibility,
+            author_username: post.author_username,
+            created_at: post.created_at
+          }
+        })
+      })
+    }
+
+    // Convert users from Elasticsearch
+    if (esResponse.results.users?.items) {
+      esResponse.results.users.items.forEach(item => {
+        const user = item.source
+        results.push({
+          id: String(user.id),
+          type: 'user',
+          title: user.full_name || user.username || 'Unknown User',
+          description: user.bio || `User: ${user.username}`,
+          imageUrl: user.profile_picture_url,
+          score: item.score,
+          metadata: {
+            username: user.username,
+            email: user.email,
+            verified: user.is_verified,
+            active: user.is_active
+          }
+        })
+      })
+    }
+
+    return {
+      results,
+      total,
+      hasMore: false, // Elasticsearch doesn't provide has_more in current implementation
+      searchTime: esResponse.search_time_ms
     }
   }
 

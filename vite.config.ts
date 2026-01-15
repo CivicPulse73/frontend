@@ -9,13 +9,13 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       port: 3000,
-      open: true,
+      open: false,  // Disabled to prevent hanging
       host: true, // Allow access from network
       cors: true,
       proxy: {
         // Proxy API requests to backend during development
         '/api': {
-          target: env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:8001',
+          target: env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
         }
